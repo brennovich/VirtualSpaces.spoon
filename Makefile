@@ -1,4 +1,4 @@
-.PHONY: test install-deps
+.PHONY: test test/acceptance install-deps
 
 build: docs.json
 	mkdir -p release/VirtualSpaces.spoon
@@ -14,3 +14,6 @@ install-deps:
 
 test:
 	eval $$(luarocks --local path) && lua tests/test.lua -o TAP
+
+test/acceptance:
+	./tests/acceptance.sh
