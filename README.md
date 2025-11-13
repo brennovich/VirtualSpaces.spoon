@@ -1,0 +1,65 @@
+# VirtualSpaces.spoon
+
+VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.
+
+## Overview
+
+It creates multiple logical workspaces on a single macOS desktop by managing window visibility across two macOS spaces: one active and one for storage. Its goal is to provide a instant switching experience between workspaces without the overhead of managing multiple physical desktops and superfulous macOS transition effects.
+
+## Architecture
+
+- **Active Space:** Where visible workspace windows are displayed
+- **Storage Space:** Where hidden workspace windows are kept
+- **Virtual Workspaces:** Logical groupings that map to physical spaces
+
+When switching workspaces, windows are moved between active and storage spaces to simulate independent desktops.
+
+### Native focus behavior
+
+When clicking on a Dock icon, or when and applications brings focus or even when cmd+tab is used, if the window in question is in the storage space, the spoon will switch the roles of the native spaces, making the storage space active and vice versa. This way, the user can still use native macOS focus behavior without breaking the virtual workspace metaphor. The only downside is that upon such switch the transition effection will occur.
+
+For that is recommended to set Reduce Motion in System Preferences > Accessibility > Display.
+
+## Features
+
+### Workspace Management
+
+#### Switch to Workspace
+Switch to a different virtual workspace.
+
+```lua
+spoon.VirtualSpaces:switchToVirtualSpace(virtualSpace)
+```
+
+#### Move Window to Workspace
+Assign a window to a different workspace.
+
+```lua
+spoon.VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)
+```
+
+## Typical Usage
+
+```lua
+hs.loadSpoon("VirtualSpaces")
+spoon.VirtualSpaces:init()
+
+for i = 1, 4 do
+    hs.hotkey.bind({"leftalt"}, tostring(i), function()
+        spoon.VirtualSpaces:switchToVirtualSpace(i)
+    end)
+
+    hs.hotkey.bind({"leftalt", "shift"}, tostring(i), function()
+        local win = hs.window.focusedWindow()
+        if win then
+            spoon.VirtualSpaces:moveWindowToVirtualSpace(win, i)
+        end
+    end)
+end
+```
+
+## Limitations
+
+- Only works with standard windows (fullscreen windows are excluded)
+- Supports only one screen (once I get it stable, multi-screen support may be added)
+- You need to give up on macOS native Spaces features, like creating new spaces through Mission Control

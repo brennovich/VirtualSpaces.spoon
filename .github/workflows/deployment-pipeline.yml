@@ -1,0 +1,77 @@
+name: deployment-pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  commit:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: '5.4'
+      - uses: leafo/gh-actions-luarocks@v4
+      - id: install-deps
+        run: make install-deps
+      - id: test
+        run: make test
+      - id: install-hammerspoon
+        uses: brennovich/action-setup-hammerspoon@v1
+      - id: create-package
+        run: make build
+      - id: verify-artifact
+        run: |
+          test -f release/VirtualSpaces.spoon.zip
+          unzip -t release/VirtualSpaces.spoon.zip
+      - id: upload-artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: release-candidate
+          path: release/VirtualSpaces.spoon.zip
+
+  acceptance:
+    needs: [commit]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-candidate
+      - id: install-hammerspoon
+        uses: brennovich/action-setup-hammerspoon@v1
+        with:
+          accessibility-permissions: true
+      - id: extract-spoon
+        run: |
+          mkdir -p ~/.hammerspoon/Spoons
+          unzip VirtualSpaces.spoon.zip -d ~/.hammerspoon/Spoons/
+      - id: test-spoon-load
+        run: hs -c "hs.loadSpoon('VirtualSpaces'); print(spoon.VirtualSpaces ~= nil and 'SUCCESS' or 'FAILED')" | grep SUCCESS
+
+  release:
+    needs: [acceptance]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ github.token }}
+          patchAll: true
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-candidate
+      - id: create-tag
+        run: |
+          git tag ${{ steps.semver.outputs.next }}
+          git push origin ${{ steps.semver.outputs.next }}
+      - id: create-release
+        run: gh release create ${{ steps.semver.outputs.next }} VirtualSpaces.spoon.zip --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
