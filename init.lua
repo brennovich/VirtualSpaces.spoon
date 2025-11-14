@@ -3,6 +3,8 @@
 --- VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.
 ---
 --- It creates multiple logical workspaces on a single macOS desktop by managing window visibility across two macOS spaces: one active and one for storage. Its goal is to provide a instant switching experience between workspaces without the overhead of managing multiple physical desktops and superfulous macOS transition effects.
+---
+--- --- Download: [VirtualSpaces.spoon.zip](https://github.com/brennovich/VirtualSpaces.spoon/releases/latest)
 
 local spoonPath = hs.spoons.scriptPath()
 package.path = package.path .. ";" .. spoonPath .. "?.lua"
@@ -132,8 +134,8 @@ end
 --- Assigns a window to a different virtual workspace and moves it to the appropriate native space.
 ---
 --- Parameters:
---- * window - Hammerspoon window object to move
---- * virtualSpace - Target virtual workspace number (must be >= 1)
+--- * window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.
+--- * virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.
 ---
 --- Returns:
 --- * None
@@ -142,8 +144,14 @@ end
 --- * If target is the current workspace, moves window to active space (visible)
 --- * If target is a different workspace, moves window to storage space (hidden)
 --- * Updates workspace mapping and restores focus appropriately
+--- * When window parameter is nil, this is NOT an error condition - it intentionally uses the focused window as a convenience feature
 function obj:moveWindowToVirtualSpace(window, virtualSpace)
-	if not window or not virtualSpace or virtualSpace < 1 then return end
+	if not virtualSpace or virtualSpace < 1 then return end
+
+	if not window then
+		window = hs.window.focusedWindow()
+		if not window then return end
+	end
 
 	self:_assignWindowToVirtualSpace(window, virtualSpace)
 
