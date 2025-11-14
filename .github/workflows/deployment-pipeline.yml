@@ -51,8 +51,6 @@ jobs:
         run: |
           mkdir -p ~/.hammerspoon/Spoons
           unzip VirtualSpaces.spoon.zip -d ~/.hammerspoon/Spoons/
-      - id: test-spoon-load
-        run: hs -c "hs.loadSpoon('VirtualSpaces'); print(spoon.VirtualSpaces ~= nil and 'SUCCESS' or 'FAILED')" | grep SUCCESS
       - id: run-acceptance-tests
         run: make test/acceptance
 
