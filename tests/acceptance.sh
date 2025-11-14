@@ -3,11 +3,7 @@
 set -e
 
 before_all() {
-    hs -c "
-        if spoon.VirtualSpaces == nil then
-            hs.loadSpoon('VirtualSpaces')
-        end
-    " 
+    hs -c "hs.loadSpoon('VirtualSpaces')" 
 }
 
 test_init() {
