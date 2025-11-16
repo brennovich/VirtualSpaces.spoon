@@ -25,10 +25,18 @@ end
 
 -- Assign a window to a virtual space
 function SpacesModel:assignWindowToVirtualSpace(windowId, virtualSpace)
-	local oldSpace = self._windowVirtualSpaceMap[windowId]
+	if not windowId or not virtualSpace then
+		return
+	end
 
-	if oldSpace then
-		self:_removeWindowFromList(oldSpace, windowId)
+	local previousVirtualSpace = self._windowVirtualSpaceMap[windowId]
+
+	if previousVirtualSpace == virtualSpace then
+		return
+	end
+
+	if previousVirtualSpace then
+		self:_removeWindowFromList(previousVirtualSpace, windowId)
 	end
 
 	if not self._virtualSpaceWindowsMap[virtualSpace] then

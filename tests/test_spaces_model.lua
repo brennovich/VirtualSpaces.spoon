@@ -352,6 +352,45 @@ function TestSpacesModel:testCategorizeWindowsWhenTargetEqualsCurrentSpace()
 	lu.assertTrue(table.contains(result.others, 300))
 end
 
+function TestSpacesModel:testReassignWindowToSameSpaceIsIdempotent()
+	local model = SpacesModel.new()
+
+	model:assignWindowToVirtualSpace(100, 1)
+	model:assignWindowToVirtualSpace(200, 1)
+
+	model:assignWindowToVirtualSpace(100, 1)
+
+	local windows = model:getWindowsInVirtualSpace(1)
+
+	local count100 = 0
+	for _, winId in ipairs(windows) do
+		if winId == 100 then
+			count100 = count100 + 1
+		end
+	end
+
+	lu.assertEquals(#windows, 2)
+	lu.assertEquals(count100, 1)
+	lu.assertTrue(table.contains(windows, 100))
+	lu.assertTrue(table.contains(windows, 200))
+end
+
+function TestSpacesModel:testAssignWindowWithNilWindowId()
+	local model = SpacesModel.new()
+
+	model:assignWindowToVirtualSpace(nil, 1)
+
+	lu.assertEquals(#model:getWindowsInVirtualSpace(1), 0)
+end
+
+function TestSpacesModel:testAssignWindowWithNilVirtualSpace()
+	local model = SpacesModel.new()
+
+	model:assignWindowToVirtualSpace(100, nil)
+
+	lu.assertNil(model:getVirtualSpaceForWindow(100))
+end
+
 function table.contains(table, element)
 	for _, value in pairs(table) do
 		if value == element then
