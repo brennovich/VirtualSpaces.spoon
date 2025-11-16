@@ -39,7 +39,8 @@ function NativeSpaceManager:setupForMainScreen()
 	self:_removeExtraSpaces(screenSpaces)
 	self:_createStorageSpace(mainScreen)
 
-	local refreshedSpaces = self._hsSpaces.allSpaces()[mainScreen]
+	local refreshedSpaces = self:_verifySpaceCount(mainScreen, 2, 3)
+
 	self._activeSpace = refreshedSpaces[1]
 	self._storageSpace = refreshedSpaces[2]
 
@@ -78,6 +79,33 @@ end
 function NativeSpaceManager:_createStorageSpace(mainScreen)
 	self._hsTimer.usleep(SPACE_CREATION_DELAY_US)
 	self._hsSpaces.addSpaceToScreen(mainScreen, true)
+end
+
+function NativeSpaceManager:_verifySpaceCount(mainScreen, expectedCount, maxRetries)
+	maxRetries = maxRetries or 3
+
+	for attempt = 1, maxRetries do
+		self._hsTimer.usleep(SPACE_REMOVAL_DELAY_US)
+		local spaces = self._hsSpaces.allSpaces()[mainScreen]
+
+		if not spaces then
+			if attempt == maxRetries then
+				error(
+					"VirtualSpaces setup failed: Unable to query spaces for main screen. " ..
+					"Check System Preferences > Security & Privacy > Accessibility."
+				)
+			end
+		elseif #spaces == expectedCount then
+			return spaces
+		elseif attempt == maxRetries then
+			error(string.format(
+				"VirtualSpaces setup failed: Expected exactly %d spaces after %d retries, but found %d",
+				expectedCount,
+				maxRetries,
+				#spaces
+			))
+		end
+	end
 end
 
 return NativeSpaceManager

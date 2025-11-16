@@ -144,7 +144,7 @@ function TestNativeSpaceManager:testSetupForMainScreenWithExactlyTwoSpaces()
 	lu.assertEquals(storage, "space-2")
 	lu.assertEquals(mocks.manager:getActiveSpace(), "space-1")
 	lu.assertEquals(mocks.manager:getStorageSpace(), "space-2")
-	lu.assertEquals(#mocks.usleepCalls, 2)
+	lu.assertEquals(#mocks.usleepCalls, 3)
 end
 
 function TestNativeSpaceManager:testSetupForMainScreenRemovesExtraSpaces()
@@ -160,7 +160,7 @@ function TestNativeSpaceManager:testSetupForMainScreenRemovesExtraSpaces()
 	lu.assertEquals(mocks.removedSpaces[1].animated, false)
 	lu.assertEquals(mocks.removedSpaces[2].id, "space-3")
 	lu.assertEquals(mocks.removedSpaces[3].id, "space-4")
-	lu.assertEquals(#mocks.usleepCalls, 4)
+	lu.assertEquals(#mocks.usleepCalls, 5)
 	lu.assertEquals(active, "space-1")
 	lu.assertEquals(storage, "space-new")
 end
@@ -209,6 +209,48 @@ function TestNativeSpaceManager:testSetupForMainScreenWithOneSpaceInitially()
 	lu.assertEquals(storage, "space-storage")
 	lu.assertEquals(mocks.manager:getActiveSpace(), "space-1")
 	lu.assertEquals(mocks.manager:getStorageSpace(), "space-storage")
+end
+
+function TestNativeSpaceManager:testSetupFailsWhenOnlyOneSpaceExists()
+	local mocks = createMocksForSetup({
+		initialSpaces = {"space-1"},
+		finalSpaces = {"space-1"}
+	})
+
+	local success, err = pcall(function()
+		mocks.manager:setupForMainScreen()
+	end)
+
+	lu.assertFalse(success)
+	lu.assertStrContains(err, "Expected exactly 2 spaces")
+end
+
+function TestNativeSpaceManager:testSetupFailsWhenMoreThanTwoSpacesExist()
+	local mocks = createMocksForSetup({
+		initialSpaces = {"space-1", "space-2", "space-3"},
+		finalSpaces = {"space-1", "space-2", "space-3"}
+	})
+
+	local success, err = pcall(function()
+		mocks.manager:setupForMainScreen()
+	end)
+
+	lu.assertFalse(success)
+	lu.assertStrContains(err, "Expected exactly 2 spaces")
+end
+
+function TestNativeSpaceManager:testSetupFailsWhenNoSpacesExist()
+	local mocks = createMocksForSetup({
+		initialSpaces = {"space-1"},
+		finalSpaces = {}
+	})
+
+	local success, err = pcall(function()
+		mocks.manager:setupForMainScreen()
+	end)
+
+	lu.assertFalse(success)
+	lu.assertStrContains(err, "Expected exactly 2 spaces")
 end
 
 return TestNativeSpaceManager
