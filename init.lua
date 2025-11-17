@@ -12,6 +12,7 @@ package.path = package.path .. ";" .. spoonPath .. "?.lua"
 local WindowsSort = require("WindowsSort")
 local SpacesModel = require("SpacesModel")
 local NativeSpaceManager = require("NativeSpaceManager")
+local Instrumentation = require("Instrumentation")
 
 local obj = {}
 obj.__index = obj
@@ -36,14 +37,16 @@ obj.license = "MIT"
 --- * Automatically assigns all existing windows to virtual space 1
 --- * Sets up window filters to track window creation and destruction
 --- * Implements space watcher to detect manual navigation to storage space
-function obj:init()
-	self.nativeSpaceManager = NativeSpaceManager.new()
+function obj:init(logLevel)
+	self._instrumentation = Instrumentation.new('VirtualSpaces', logLevel or 'warning')
+
+	self.nativeSpaceManager = NativeSpaceManager.new(nil, nil, nil, nil, self._instrumentation)
 
 	-- Ensure we have exactly two native spaces on the main screen
 	local activeSpace, storageSpace = self.nativeSpaceManager:setupForMainScreen()
 
 	self._windowSorter = WindowsSort.new(
-		hs.spaces.moveWindowToSpace, activeSpace, storageSpace)
+		hs.spaces.moveWindowToSpace, activeSpace, storageSpace, self._instrumentation)
 
 	self.model = SpacesModel.new()
 	self.windowFilter = hs.window.filter.new()
@@ -149,7 +152,9 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 	if not virtualSpace or virtualSpace < 1 then return end
 
 	if not window then
-		window = hs.window.focusedWindow()
+		window = self:_timedCall("focusedWindow()", function()
+			return hs.window.focusedWindow()
+		end)
 		if not window then return end
 	end
 
@@ -158,7 +163,9 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 	local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
 		and self.nativeSpaceManager:getActiveSpace()
 		or self.nativeSpaceManager:getStorageSpace()
-	hs.spaces.moveWindowToSpace(window, targetNativeSpace)
+	self:_timedCall("moveWindowToSpace()", function()
+		hs.spaces.moveWindowToSpace(window, targetNativeSpace)
+	end)
 
 	self:_restoreWindowsFocusForVirtualSpace()
 end
@@ -194,12 +201,23 @@ function obj:_isValidWindowForVirtualSpace(window)
 end
 
 function obj:_focusWindowById(windowId)
-	local win = hs.window.get(windowId)
+	local win = self:_timedCall("window.get()", function()
+		return hs.window.get(windowId)
+	end)
 	if win and win:isStandard() and not win:isMinimized() then
-		win:focus()
+		self:_timedCall("window:focus()", function()
+			win:focus()
+		end)
 		return true
 	end
 	return false
+end
+
+function obj:_timedCall(operationName, fn)
+	if not self._instrumentation then
+		return fn()
+	end
+	return self._instrumentation:timed(operationName, fn)
 end
 
 return obj

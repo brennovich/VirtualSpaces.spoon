@@ -17,12 +17,13 @@ local MISSION_CONTROL_WAIT_TIME_S = 0.5
 local SPACE_REMOVAL_DELAY_US = 100000
 local SPACE_CREATION_DELAY_US = 10000
 
-function NativeSpaceManager.new(hsSpaces, hsScreen, hsTimer, hsEventtap)
+function NativeSpaceManager.new(hsSpaces, hsScreen, hsTimer, hsEventtap, instrumentation)
 	local self = setmetatable({}, NativeSpaceManager)
 	self._hsSpaces = hsSpaces or hs.spaces
 	self._hsScreen = hsScreen or hs.screen
 	self._hsTimer = hsTimer or hs.timer
 	self._hsEventtap = hsEventtap or hs.eventtap
+	self._instrumentation = instrumentation
 	self._activeSpace = nil
 	self._storageSpace = nil
 	return self
@@ -32,7 +33,9 @@ function NativeSpaceManager:setupForMainScreen()
 	self._hsSpaces.setDefaultMCwaitTime(MISSION_CONTROL_WAIT_TIME_S)
 
 	local mainScreen = self._hsScreen.mainScreen():getUUID()
-	local allSpaces = self._hsSpaces.allSpaces()
+	local allSpaces = self:_timedCall("allSpaces()", function()
+		return self._hsSpaces.allSpaces()
+	end)
 	local screenSpaces = allSpaces[mainScreen]
 
 	self:_ensureOnFirstSpace(screenSpaces)
@@ -61,9 +64,17 @@ function NativeSpaceManager:updateSpaces(activeSpace, storageSpace)
 end
 
 function NativeSpaceManager:_ensureOnFirstSpace(screenSpaces)
-	if self._hsSpaces.activeSpaceOnScreen() ~= screenSpaces[1] then
-		self._hsSpaces.gotoSpace(screenSpaces[1])
-		self._hsEventtap.keyStroke({}, "escape")
+	local activeSpace = self:_timedCall("activeSpaceOnScreen()", function()
+		return self._hsSpaces.activeSpaceOnScreen()
+	end)
+
+	if activeSpace ~= screenSpaces[1] then
+		self:_timedCall("gotoSpace()", function()
+			self._hsSpaces.gotoSpace(screenSpaces[1])
+		end)
+		self:_timedCall("keyStroke(escape)", function()
+			self._hsEventtap.keyStroke({}, "escape")
+		end)
 	end
 end
 
@@ -71,14 +82,18 @@ function NativeSpaceManager:_removeExtraSpaces(screenSpaces)
 	if #screenSpaces > 1 then
 		for i = 2, #screenSpaces do
 			self._hsTimer.usleep(SPACE_REMOVAL_DELAY_US)
-			self._hsSpaces.removeSpace(screenSpaces[i], false)
+			self:_timedCall("removeSpace()", function()
+				self._hsSpaces.removeSpace(screenSpaces[i], false)
+			end)
 		end
 	end
 end
 
 function NativeSpaceManager:_createStorageSpace(mainScreen)
 	self._hsTimer.usleep(SPACE_CREATION_DELAY_US)
-	self._hsSpaces.addSpaceToScreen(mainScreen, true)
+	self:_timedCall("addSpaceToScreen()", function()
+		self._hsSpaces.addSpaceToScreen(mainScreen, true)
+	end)
 end
 
 function NativeSpaceManager:_verifySpaceCount(mainScreen, expectedCount, maxRetries)
@@ -86,7 +101,10 @@ function NativeSpaceManager:_verifySpaceCount(mainScreen, expectedCount, maxRetr
 
 	for attempt = 1, maxRetries do
 		self._hsTimer.usleep(SPACE_REMOVAL_DELAY_US)
-		local spaces = self._hsSpaces.allSpaces()[mainScreen]
+		local allSpaces = self:_timedCall("allSpaces()", function()
+			return self._hsSpaces.allSpaces()
+		end)
+		local spaces = allSpaces[mainScreen]
 
 		if not spaces then
 			if attempt == maxRetries then
@@ -106,6 +124,13 @@ function NativeSpaceManager:_verifySpaceCount(mainScreen, expectedCount, maxRetr
 			))
 		end
 	end
+end
+
+function NativeSpaceManager:_timedCall(operationName, fn)
+	if not self._instrumentation then
+		return fn()
+	end
+	return self._instrumentation:timed(operationName, fn)
 end
 
 return NativeSpaceManager
