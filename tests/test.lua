@@ -5,6 +5,6 @@ TestSpacesModel = require('tests/test_spaces_model')
 TestNativeSpaceManager = require('tests/test_native_space_manager')
 TestVirtualSpacesWindowDestroyed = require('tests/test_virtual_spaces')
 TestMoveWindowToVirtualSpace = require('tests/test_move_window_to_virtual_space')
-TestInstrumentation = require('tests/test_instrumentation')
+TestTelemetry = require('tests/test_telemetry')
 
 os.exit(lu.LuaUnit.run())

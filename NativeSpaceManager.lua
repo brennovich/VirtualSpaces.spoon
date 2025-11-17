@@ -10,6 +10,8 @@
 -- This module makes sure to setup the Native Spaces accordingly, ensuring that
 -- indenpendently of your configuration before loading the spoon, you will end up
 -- with exactly two Spaces on the main screen.
+local Telemetry = require("Telemetry")
+
 local NativeSpaceManager = {}
 NativeSpaceManager.__index = NativeSpaceManager
 
@@ -17,37 +19,39 @@ local MISSION_CONTROL_WAIT_TIME_S = 0.5
 local SPACE_REMOVAL_DELAY_US = 100000
 local SPACE_CREATION_DELAY_US = 10000
 
-function NativeSpaceManager.new(hsSpaces, hsScreen, hsTimer, hsEventtap, instrumentation)
+function NativeSpaceManager.new(hsSpaces, hsScreen, hsTimer, hsEventtap, telemetry)
 	local self = setmetatable({}, NativeSpaceManager)
 	self._hsSpaces = hsSpaces or hs.spaces
 	self._hsScreen = hsScreen or hs.screen
 	self._hsTimer = hsTimer or hs.timer
 	self._hsEventtap = hsEventtap or hs.eventtap
-	self._instrumentation = instrumentation
+	self._telemetry = telemetry or Telemetry.NoOp.new()
 	self._activeSpace = nil
 	self._storageSpace = nil
 	return self
 end
 
 function NativeSpaceManager:setupForMainScreen()
-	self._hsSpaces.setDefaultMCwaitTime(MISSION_CONTROL_WAIT_TIME_S)
+	return self._telemetry:span("setupForMainScreen", function()
+		self._hsSpaces.setDefaultMCwaitTime(MISSION_CONTROL_WAIT_TIME_S)
 
-	local mainScreen = self._hsScreen.mainScreen():getUUID()
-	local allSpaces = self:_timedCall("allSpaces()", function()
-		return self._hsSpaces.allSpaces()
+		local mainScreen = self._hsScreen.mainScreen():getUUID()
+		local allSpaces = self._telemetry:span("allSpaces()", function()
+			return self._hsSpaces.allSpaces()
+		end)
+		local screenSpaces = allSpaces[mainScreen]
+
+		self:_ensureOnFirstSpace(screenSpaces)
+		self:_removeExtraSpaces(screenSpaces)
+		self:_createStorageSpace(mainScreen)
+
+		local refreshedSpaces = self:_verifySpaceCount(mainScreen, 2, 3)
+
+		self._activeSpace = refreshedSpaces[1]
+		self._storageSpace = refreshedSpaces[2]
+
+		return self._activeSpace, self._storageSpace
 	end)
-	local screenSpaces = allSpaces[mainScreen]
-
-	self:_ensureOnFirstSpace(screenSpaces)
-	self:_removeExtraSpaces(screenSpaces)
-	self:_createStorageSpace(mainScreen)
-
-	local refreshedSpaces = self:_verifySpaceCount(mainScreen, 2, 3)
-
-	self._activeSpace = refreshedSpaces[1]
-	self._storageSpace = refreshedSpaces[2]
-
-	return self._activeSpace, self._storageSpace
 end
 
 function NativeSpaceManager:getActiveSpace()
@@ -64,15 +68,15 @@ function NativeSpaceManager:updateSpaces(activeSpace, storageSpace)
 end
 
 function NativeSpaceManager:_ensureOnFirstSpace(screenSpaces)
-	local activeSpace = self:_timedCall("activeSpaceOnScreen()", function()
+	local activeSpace = self._telemetry:span("activeSpaceOnScreen()", function()
 		return self._hsSpaces.activeSpaceOnScreen()
 	end)
 
 	if activeSpace ~= screenSpaces[1] then
-		self:_timedCall("gotoSpace()", function()
+		self._telemetry:span("gotoSpace()", function()
 			self._hsSpaces.gotoSpace(screenSpaces[1])
 		end)
-		self:_timedCall("keyStroke(escape)", function()
+		self._telemetry:span("keyStroke(escape)", function()
 			self._hsEventtap.keyStroke({}, "escape")
 		end)
 	end
@@ -82,7 +86,7 @@ function NativeSpaceManager:_removeExtraSpaces(screenSpaces)
 	if #screenSpaces > 1 then
 		for i = 2, #screenSpaces do
 			self._hsTimer.usleep(SPACE_REMOVAL_DELAY_US)
-			self:_timedCall("removeSpace()", function()
+			self._telemetry:span("removeSpace()", function()
 				self._hsSpaces.removeSpace(screenSpaces[i], false)
 			end)
 		end
@@ -91,7 +95,7 @@ end
 
 function NativeSpaceManager:_createStorageSpace(mainScreen)
 	self._hsTimer.usleep(SPACE_CREATION_DELAY_US)
-	self:_timedCall("addSpaceToScreen()", function()
+	self._telemetry:span("addSpaceToScreen()", function()
 		self._hsSpaces.addSpaceToScreen(mainScreen, true)
 	end)
 end
@@ -101,7 +105,7 @@ function NativeSpaceManager:_verifySpaceCount(mainScreen, expectedCount, maxRetr
 
 	for attempt = 1, maxRetries do
 		self._hsTimer.usleep(SPACE_REMOVAL_DELAY_US)
-		local allSpaces = self:_timedCall("allSpaces()", function()
+		local allSpaces = self._telemetry:span("allSpaces()", function()
 			return self._hsSpaces.allSpaces()
 		end)
 		local spaces = allSpaces[mainScreen]
@@ -124,13 +128,6 @@ function NativeSpaceManager:_verifySpaceCount(mainScreen, expectedCount, maxRetr
 			))
 		end
 	end
-end
-
-function NativeSpaceManager:_timedCall(operationName, fn)
-	if not self._instrumentation then
-		return fn()
-	end
-	return self._instrumentation:timed(operationName, fn)
 end
 
 return NativeSpaceManager

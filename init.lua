@@ -12,7 +12,7 @@ package.path = package.path .. ";" .. spoonPath .. "?.lua"
 local WindowsSort = require("WindowsSort")
 local SpacesModel = require("SpacesModel")
 local NativeSpaceManager = require("NativeSpaceManager")
-local Instrumentation = require("Instrumentation")
+local Telemetry = require("Telemetry")
 
 local obj = {}
 obj.__index = obj
@@ -38,15 +38,15 @@ obj.license = "MIT"
 --- * Sets up window filters to track window creation and destruction
 --- * Implements space watcher to detect manual navigation to storage space
 function obj:init()
-	self._instrumentation = Instrumentation.new('VirtualSpaces', 'warning')
+	self._telemetry = Telemetry.new('VirtualSpaces', 'warning')
 
-	self.nativeSpaceManager = NativeSpaceManager.new(nil, nil, nil, nil, self._instrumentation)
+	self.nativeSpaceManager = NativeSpaceManager.new(nil, nil, nil, nil, self._telemetry)
 
 	-- Ensure we have exactly two native spaces on the main screen
 	local activeSpace, storageSpace = self.nativeSpaceManager:setupForMainScreen()
 
 	self._windowSorter = WindowsSort.new(
-		hs.spaces.moveWindowToSpace, activeSpace, storageSpace, self._instrumentation)
+		hs.spaces.moveWindowToSpace, activeSpace, storageSpace, self._telemetry)
 
 	self.model = SpacesModel.new()
 	self.windowFilter = hs.window.filter.new()
@@ -110,26 +110,30 @@ function obj:switchToVirtualSpace(virtualSpace)
 		return
 	end
 
-	local currentSpace = hs.spaces.activeSpaceOnScreen()
+	return self._telemetry:span(string.format("switchToVirtualSpace(%d)", virtualSpace), function()
+		local currentSpace = hs.spaces.activeSpaceOnScreen()
 
-	if virtualSpace == self.model:getCurrentVirtualSpace() and currentSpace == self.nativeSpaceManager:getActiveSpace() then
-		return
-	end
+		if virtualSpace == self.model:getCurrentVirtualSpace() and currentSpace == self.nativeSpaceManager:getActiveSpace() then
+			return
+		end
 
-	local focusedWin = hs.window.focusedWindow()
-	if focusedWin then
-		self.model:saveFocusedWindowInVirtualSpace(self.model:getCurrentVirtualSpace(), focusedWin:id())
-	end
+		local focusedWin = hs.window.focusedWindow()
+		if focusedWin then
+			self._telemetry:span("saveFocusedWindow", function()
+				self.model:saveFocusedWindowInVirtualSpace(self.model:getCurrentVirtualSpace(), focusedWin:id())
+			end)
+		end
 
-	local categorizedWindows = self.model:categorizeWindowsForTransition(virtualSpace, self.model:getCurrentVirtualSpace())
-	local activeSpace, storageSpace = self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
-		categorizedWindows,
-		currentSpace
-	)
-	self.nativeSpaceManager:updateSpaces(activeSpace, storageSpace)
-	self.model:setCurrentVirtualSpace(virtualSpace)
+		local categorizedWindows = self.model:categorizeWindowsForTransition(virtualSpace, self.model:getCurrentVirtualSpace())
+		local activeSpace, storageSpace = self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
+			categorizedWindows,
+			currentSpace
+		)
+		self.nativeSpaceManager:updateSpaces(activeSpace, storageSpace)
+		self.model:setCurrentVirtualSpace(virtualSpace)
 
-	self:_restoreWindowsFocusForVirtualSpace()
+		self:_restoreWindowsFocusForVirtualSpace()
+	end)
 end
 
 --- VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)
@@ -151,49 +155,54 @@ end
 function obj:moveWindowToVirtualSpace(window, virtualSpace)
 	if not virtualSpace or virtualSpace < 1 then return end
 
-	if not window then
-		window = self:_timedCall("focusedWindow()", function()
-			return hs.window.focusedWindow()
+	return self._telemetry:span(string.format("moveWindowToVirtualSpace(%d)", virtualSpace), function()
+		if not window then
+			window = self._telemetry:span("focusedWindow()", function()
+				return hs.window.focusedWindow()
+			end)
+			if not window then return end
+		end
+
+		self:_assignWindowToVirtualSpace(window, virtualSpace)
+
+		local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
+			and self.nativeSpaceManager:getActiveSpace()
+			or self.nativeSpaceManager:getStorageSpace()
+		self._telemetry:span("moveWindowToSpace()", function()
+			hs.spaces.moveWindowToSpace(window, targetNativeSpace)
 		end)
-		if not window then return end
-	end
 
-	self:_assignWindowToVirtualSpace(window, virtualSpace)
-
-	local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
-		and self.nativeSpaceManager:getActiveSpace()
-		or self.nativeSpaceManager:getStorageSpace()
-	self:_timedCall("moveWindowToSpace()", function()
-		hs.spaces.moveWindowToSpace(window, targetNativeSpace)
+		self:_restoreWindowsFocusForVirtualSpace()
 	end)
-
-	self:_restoreWindowsFocusForVirtualSpace()
 end
 
 function obj:_assignWindowToVirtualSpace(window, virtualSpace)
 	if not self:_isValidWindowForVirtualSpace(window) then return end
 
-	local winId = window:id()
-	self.model:assignWindowToVirtualSpace(winId, virtualSpace)
-	self.model:saveFocusedWindowInVirtualSpace(virtualSpace, winId)
+	return self._telemetry:span("assignWindowToVirtualSpace", function()
+		local winId = window:id()
+		self.model:assignWindowToVirtualSpace(winId, virtualSpace)
+		self.model:saveFocusedWindowInVirtualSpace(virtualSpace, winId)
+	end)
 end
 
 function obj:_restoreWindowsFocusForVirtualSpace()
-	local currentVirtualSpace = self.model:getCurrentVirtualSpace()
-	local windowId = self.model:getFocusedWindowForVirtualSpace(currentVirtualSpace)
-	if windowId and self.model:getVirtualSpaceForWindow(windowId) == currentVirtualSpace then
-		if self:_focusWindowById(windowId) then
-			return
+	return self._telemetry:span("restoreWindowsFocus", function()
+		local currentVirtualSpace = self.model:getCurrentVirtualSpace()
+		local windowId = self.model:getFocusedWindowForVirtualSpace(currentVirtualSpace)
+		if windowId and self.model:getVirtualSpaceForWindow(windowId) == currentVirtualSpace then
+			if self:_focusWindowById(windowId) then
+				return
+			end
 		end
-	end
 
-	-- Fallback: focus the first available window in the workspace
-	local remainingWindows = self.model:getWindowsInVirtualSpace(currentVirtualSpace)
-	if #remainingWindows > 0 then
-		if self:_focusWindowById(remainingWindows[1]) then
-			self.model:saveFocusedWindowInVirtualSpace(currentVirtualSpace, remainingWindows[1])
+		local remainingWindows = self.model:getWindowsInVirtualSpace(currentVirtualSpace)
+		if #remainingWindows > 0 then
+			if self:_focusWindowById(remainingWindows[1]) then
+				self.model:saveFocusedWindowInVirtualSpace(currentVirtualSpace, remainingWindows[1])
+			end
 		end
-	end
+	end)
 end
 
 function obj:_isValidWindowForVirtualSpace(window)
@@ -201,11 +210,11 @@ function obj:_isValidWindowForVirtualSpace(window)
 end
 
 function obj:_focusWindowById(windowId)
-	local win = self:_timedCall("window.get()", function()
+	local win = self._telemetry:span("window.get()", function()
 		return hs.window.get(windowId)
 	end)
 	if win and win:isStandard() and not win:isMinimized() then
-		self:_timedCall("window:focus()", function()
+		self._telemetry:span("window:focus()", function()
 			win:focus()
 		end)
 		return true
@@ -213,31 +222,23 @@ function obj:_focusWindowById(windowId)
 	return false
 end
 
-function obj:_timedCall(operationName, fn)
-	if not self._instrumentation then
-		return fn()
-	end
-	return self._instrumentation:timed(operationName, fn)
-end
-
 --- VirtualSpaces:instrument(logLevel)
 --- Method
---- Sets the instrumentation log level to enable or disable performance metrics.
+--- Sets the instrumentation log level to control logging behavior.
 ---
 --- Parameters:
---- * logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'. Use 'debug' to enable timing metrics.
+--- * logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'
 ---
 --- Returns:
 --- * None
 ---
 --- Notes:
 --- * Can be called at any time to change logging verbosity
---- * Default log level is 'warning' (metrics disabled)
---- * At 'debug' level, shows timing for Hammerspoon API calls
+--- * Default log level is 'warning' (no instrumentation)
+--- * 'info' level: logs operation names only
+--- * 'debug' level: logs both operation names and timing metrics
 function obj:instrument(logLevel)
-	if self._instrumentation then
-		self._instrumentation:setLogLevel(logLevel)
-	end
+	self._telemetry:setLogLevel(logLevel)
 end
 
 return obj
