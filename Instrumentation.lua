@@ -8,6 +8,10 @@ function Instrumentation.new(componentName, logLevel)
 	return self
 end
 
+function Instrumentation:setLogLevel(logLevel)
+	self._logger = hs and hs.logger and hs.logger.new(self._componentName, logLevel)
+end
+
 function Instrumentation:timed(operationName, fn)
 	if not self._logger or self._logger.level < 4 then
 		return fn()

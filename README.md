@@ -71,11 +71,21 @@ end
 
 VirtualSpaces includes performance instrumentation to measure Hammerspoon API call timings. By default, logging is disabled (warning level).
 
-To enable verbose performance metrics:
+To enable verbose performance metrics, call the `instrument()` method at any time:
 
 ```lua
 hs.loadSpoon("VirtualSpaces")
-spoon.VirtualSpaces:init('debug')
+spoon.VirtualSpaces:instrument('debug')
+```
+
+You can change the log level dynamically:
+
+```lua
+-- Enable debug logging
+spoon.VirtualSpaces:instrument('debug')
+
+-- Disable logging
+spoon.VirtualSpaces:instrument('warning')
 ```
 
 With debug logging enabled, you'll see timing information for operations like:

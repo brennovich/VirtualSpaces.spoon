@@ -37,8 +37,8 @@ obj.license = "MIT"
 --- * Automatically assigns all existing windows to virtual space 1
 --- * Sets up window filters to track window creation and destruction
 --- * Implements space watcher to detect manual navigation to storage space
-function obj:init(logLevel)
-	self._instrumentation = Instrumentation.new('VirtualSpaces', logLevel or 'warning')
+function obj:init()
+	self._instrumentation = Instrumentation.new('VirtualSpaces', 'warning')
 
 	self.nativeSpaceManager = NativeSpaceManager.new(nil, nil, nil, nil, self._instrumentation)
 
@@ -218,6 +218,26 @@ function obj:_timedCall(operationName, fn)
 		return fn()
 	end
 	return self._instrumentation:timed(operationName, fn)
+end
+
+--- VirtualSpaces:instrument(logLevel)
+--- Method
+--- Sets the instrumentation log level to enable or disable performance metrics.
+---
+--- Parameters:
+--- * logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'. Use 'debug' to enable timing metrics.
+---
+--- Returns:
+--- * None
+---
+--- Notes:
+--- * Can be called at any time to change logging verbosity
+--- * Default log level is 'warning' (metrics disabled)
+--- * At 'debug' level, shows timing for Hammerspoon API calls
+function obj:instrument(logLevel)
+	if self._instrumentation then
+		self._instrumentation:setLogLevel(logLevel)
+	end
 end
 
 return obj
