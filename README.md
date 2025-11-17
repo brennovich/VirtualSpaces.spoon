@@ -67,8 +67,46 @@ for i = 1, 4 do
 end
 ```
 
+## Instrumentation and Debugging
+
+VirtualSpaces includes performance instrumentation to measure Hammerspoon API call timings. By default, logging is disabled (warning level).
+
+To enable verbose performance metrics:
+
+```lua
+hs.loadSpoon("VirtualSpaces")
+spoon.VirtualSpaces:init('debug')
+```
+
+With debug logging enabled, you'll see timing information for operations like:
+- Native space management (creation, removal, switching)
+- Window movement between spaces
+- Focus management
+
+Check the Hammerspoon console for timing output.
+
 ## Limitations
 
 - Only works with standard windows (fullscreen windows are excluded)
 - Supports only one screen (once I get it stable, multi-screen support may be added)
 - You need to give up on macOS native Spaces features, like creating new spaces through Mission Control
+
+## Contribute
+
+### Running Tests
+
+```bash
+make test
+```
+
+Tests use the LuaUnit framework and follow TDD principles.
+
+### Building and Installing
+
+```bash
+# Build the spoon
+make build
+
+# Build and install to ~/.hammerspoon/Spoons
+make install
+```
