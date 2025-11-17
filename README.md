@@ -13,6 +13,7 @@ It creates multiple logical workspaces on a single macOS desktop by managing win
 - **Active Space:** Where visible workspace windows are displayed
 - **Storage Space:** Where hidden workspace windows are kept
 - **Virtual Workspaces:** Logical groupings that map to physical spaces
+- **Window Cache:** Performance optimization that caches window objects
 
 <video src="https://github.com/user-attachments/assets/33ad4f85-efc3-48f6-af51-ec59f1b73156"></video>
 

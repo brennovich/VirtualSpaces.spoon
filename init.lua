@@ -13,6 +13,7 @@ local WindowsSort = require("WindowsSort")
 local SpacesModel = require("SpacesModel")
 local NativeSpaceManager = require("NativeSpaceManager")
 local Telemetry = require("Telemetry")
+local WindowCache = require("WindowCache")
 
 local obj = {}
 obj.__index = obj
@@ -49,6 +50,7 @@ function obj:init()
 		hs.spaces.moveWindowToSpace, activeSpace, storageSpace, self._telemetry)
 
 	self.model = SpacesModel.new()
+	self.windowCache = WindowCache.new(self._telemetry)
 	self.windowFilter = hs.window.filter.new()
 
 	-- This filter is unused but it seems to help address this bug:
@@ -58,14 +60,20 @@ function obj:init()
 
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
+		self.windowCache:add(window:id(), window)
 	end)
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
-		self.model:removeWindow(window:id())
+		local windowId = window:id()
+		self.model:removeWindow(windowId)
+		self.windowCache:remove(windowId)
 		self:_restoreWindowsFocusForVirtualSpace()
 	end)
 
 	for _, win in ipairs(hs.window.allWindows()) do
-		self:_assignWindowToVirtualSpace(win, 1)
+		if win:isStandard() then
+			self:_assignWindowToVirtualSpace(win, 1)
+			self.windowCache:add(win:id(), win)
+		end
 	end
 
 	self.spaceWatcher = hs.spaces.watcher.new(function(spaceId)
@@ -210,10 +218,10 @@ function obj:_isValidWindowForVirtualSpace(window)
 end
 
 function obj:_focusWindowById(windowId)
-	local win = self._telemetry:span("window.get()", function()
-		return hs.window.get(windowId)
+	local win = self._telemetry:span("windowCache:get()", function()
+		return self.windowCache:get(windowId)
 	end)
-	if win and win:isStandard() and not win:isMinimized() then
+	if win and not win:isMinimized() then
 		self._telemetry:span("window:focus()", function()
 			win:focus()
 		end)
