@@ -1,4 +1,5 @@
 local lu = require('luaunit')
+require('tests/test_helpers')
 
 local SpacesModel = require('SpacesModel')
 
@@ -11,143 +12,138 @@ function TestSpacesModel:testNew()
 	lu.assertNotNil(model._focusedWindows)
 end
 
-function TestSpacesModel:testGetCurrentVirtualSpaceInitialValue()
-	local model = SpacesModel.new()
+function TestSpacesModel:testCurrentVirtualSpace()
+	local cases = {
+		{name = "initial value is 1", setValues = nil, expected = 1},
+		{name = "set to 2", setValues = {2}, expected = 2},
+		{name = "set to 3", setValues = {3}, expected = 3},
+		{name = "multiple sets uses last", setValues = {2, 5, 3}, expected = 3},
+	}
 
-	lu.assertEquals(model:getCurrentVirtualSpace(), 1)
+	for _, tc in ipairs(cases) do
+		local model = SpacesModel.new()
+
+		if tc.setValues then
+			for _, val in ipairs(tc.setValues) do
+				model:setCurrentVirtualSpace(val)
+			end
+		end
+
+		lu.assertEquals(model:getCurrentVirtualSpace(), tc.expected, tc.name)
+	end
 end
 
-function TestSpacesModel:testSetCurrentVirtualSpace()
-	local model = SpacesModel.new()
+function TestSpacesModel:testFocusedWindowManagement()
+	local cases = {
+		{
+			name = "save and get single window",
+			saves = {{space = 1, window = 100}},
+			assertions = {{space = 1, expected = 100}}
+		},
+		{
+			name = "get from non-existent space returns nil",
+			saves = {},
+			assertions = {{space = 999, expected = nil}}
+		},
+		{
+			name = "overwrite window in same space",
+			saves = {{space = 1, window = 100}, {space = 1, window = 200}},
+			assertions = {{space = 1, expected = 200}}
+		},
+		{
+			name = "multiple virtual spaces",
+			saves = {{space = 1, window = 100}, {space = 2, window = 200}, {space = 3, window = 300}},
+			assertions = {{space = 1, expected = 100}, {space = 2, expected = 200}, {space = 3, expected = 300}}
+		},
+		{
+			name = "save nil window",
+			saves = {{space = 1, window = nil}},
+			assertions = {{space = 1, expected = nil}}
+		},
+	}
 
-	model:setCurrentVirtualSpace(2)
+	for _, tc in ipairs(cases) do
+		local model = SpacesModel.new()
 
-	lu.assertEquals(model:getCurrentVirtualSpace(), 2)
+		for _, save in ipairs(tc.saves) do
+			model:saveFocusedWindowInVirtualSpace(save.space, save.window)
+		end
+
+		for _, assertion in ipairs(tc.assertions) do
+			lu.assertEquals(model:getFocusedWindowForVirtualSpace(assertion.space), assertion.expected, tc.name)
+		end
+	end
 end
 
-function TestSpacesModel:testGetCurrentVirtualSpace()
-	local model = SpacesModel.new()
+function TestSpacesModel:testWindowAssignment()
+	local cases = {
+		{
+			name = "assign single window",
+			assignments = {{window = 100, space = 1}},
+			assertions = {{window = 100, expected = 1}}
+		},
+		{
+			name = "multiple windows to same space",
+			assignments = {{window = 100, space = 1}, {window = 200, space = 1}, {window = 300, space = 2}},
+			assertions = {{window = 100, expected = 1}, {window = 200, expected = 1}, {window = 300, expected = 2}}
+		},
+		{
+			name = "reassign window to different space",
+			assignments = {{window = 100, space = 1}, {window = 100, space = 2}},
+			assertions = {{window = 100, expected = 2}}
+		},
+	}
 
-	model:setCurrentVirtualSpace(3)
-	local current = model:getCurrentVirtualSpace()
+	for _, tc in ipairs(cases) do
+		local model = SpacesModel.new()
 
-	lu.assertEquals(current, 3)
+		for _, assignment in ipairs(tc.assignments) do
+			model:assignWindowToVirtualSpace(assignment.window, assignment.space)
+		end
+
+		for _, assertion in ipairs(tc.assertions) do
+			lu.assertEquals(model:getVirtualSpaceForWindow(assertion.window), assertion.expected, tc.name)
+		end
+	end
 end
 
-function TestSpacesModel:testSetCurrentVirtualSpaceMultipleTimes()
-	local model = SpacesModel.new()
+function TestSpacesModel:testWindowRemoval()
+	local cases = {
+		{
+			name = "remove assigned window",
+			assignments = {{window = 100, space = 1}},
+			removals = {100},
+			assertions = {{window = 100, expected = nil}}
+		},
+		{
+			name = "remove non-existent window",
+			assignments = {},
+			removals = {999},
+			assertions = {{window = 999, expected = nil}}
+		},
+		{
+			name = "get non-existent window",
+			assignments = {},
+			removals = {},
+			assertions = {{window = 999, expected = nil}}
+		},
+	}
 
-	model:setCurrentVirtualSpace(2)
-	model:setCurrentVirtualSpace(5)
-	model:setCurrentVirtualSpace(3)
+	for _, tc in ipairs(cases) do
+		local model = SpacesModel.new()
 
-	lu.assertEquals(model:getCurrentVirtualSpace(), 3)
-end
+		for _, assignment in ipairs(tc.assignments) do
+			model:assignWindowToVirtualSpace(assignment.window, assignment.space)
+		end
 
-function TestSpacesModel:testSaveFocusedWindowInVirtualSpace()
-	local model = SpacesModel.new()
+		for _, windowId in ipairs(tc.removals) do
+			model:removeWindow(windowId)
+		end
 
-	model:saveFocusedWindowInVirtualSpace(1, 100)
-
-	lu.assertEquals(model._focusedWindows[1], 100)
-end
-
-function TestSpacesModel:testGetFocusedWindowForVirtualSpace()
-	local model = SpacesModel.new()
-
-	model:saveFocusedWindowInVirtualSpace(1, 100)
-	local windowId = model:getFocusedWindowForVirtualSpace(1)
-
-	lu.assertEquals(windowId, 100)
-end
-
-function TestSpacesModel:testGetFocusedWindowForNonExistentVirtualSpace()
-	local model = SpacesModel.new()
-
-	local windowId = model:getFocusedWindowForVirtualSpace(999)
-
-	lu.assertNil(windowId)
-end
-
-function TestSpacesModel:testOverwriteFocusedWindowInVirtualSpace()
-	local model = SpacesModel.new()
-
-	model:saveFocusedWindowInVirtualSpace(1, 100)
-	model:saveFocusedWindowInVirtualSpace(1, 200)
-
-	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 200)
-end
-
-function TestSpacesModel:testMultipleVirtualSpaces()
-	local model = SpacesModel.new()
-
-	model:saveFocusedWindowInVirtualSpace(1, 100)
-	model:saveFocusedWindowInVirtualSpace(2, 200)
-	model:saveFocusedWindowInVirtualSpace(3, 300)
-
-	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 100)
-	lu.assertEquals(model:getFocusedWindowForVirtualSpace(2), 200)
-	lu.assertEquals(model:getFocusedWindowForVirtualSpace(3), 300)
-end
-
-function TestSpacesModel:testSaveNilWindowId()
-	local model = SpacesModel.new()
-
-	model:saveFocusedWindowInVirtualSpace(1, nil)
-
-	lu.assertNil(model:getFocusedWindowForVirtualSpace(1))
-end
-
-function TestSpacesModel:testAssignWindowToVirtualSpace()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 1)
-
-	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
-end
-
-function TestSpacesModel:testAssignMultipleWindowsToSameVirtualSpace()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 1)
-	model:assignWindowToVirtualSpace(200, 1)
-	model:assignWindowToVirtualSpace(300, 2)
-
-	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
-	lu.assertEquals(model:getVirtualSpaceForWindow(200), 1)
-	lu.assertEquals(model:getVirtualSpaceForWindow(300), 2)
-end
-
-function TestSpacesModel:testReassignWindowToDifferentVirtualSpace()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 1)
-	model:assignWindowToVirtualSpace(100, 2)
-
-	lu.assertEquals(model:getVirtualSpaceForWindow(100), 2)
-end
-
-function TestSpacesModel:testRemoveWindow()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 1)
-	model:removeWindow(100)
-
-	lu.assertNil(model:getVirtualSpaceForWindow(100))
-end
-
-function TestSpacesModel:testRemoveNonExistentWindow()
-	local model = SpacesModel.new()
-
-	model:removeWindow(999)
-
-	lu.assertNil(model:getVirtualSpaceForWindow(999))
-end
-
-function TestSpacesModel:testGetVirtualSpaceForNonExistentWindow()
-	local model = SpacesModel.new()
-
-	lu.assertNil(model:getVirtualSpaceForWindow(999))
+		for _, assertion in ipairs(tc.assertions) do
+			lu.assertNil(model:getVirtualSpaceForWindow(assertion.window), tc.name)
+		end
+	end
 end
 
 function TestSpacesModel:testGetWindowsInVirtualSpace()
@@ -389,15 +385,6 @@ function TestSpacesModel:testAssignWindowWithNilVirtualSpace()
 	model:assignWindowToVirtualSpace(100, nil)
 
 	lu.assertNil(model:getVirtualSpaceForWindow(100))
-end
-
-function table.contains(table, element)
-	for _, value in pairs(table) do
-		if value == element then
-			return true
-		end
-	end
-	return false
 end
 
 return TestSpacesModel

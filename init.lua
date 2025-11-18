@@ -61,6 +61,13 @@ function obj:init()
 	self.windowFilterOther = hs.window.filter.new()
 	self.windowFilterOther:setCurrentSpace(true)
 
+	for _, win in ipairs(hs.window.allWindows()) do
+		if win:isStandard() then
+			self:_assignWindowToVirtualSpace(win, 1)
+			self.windowCache:add(win:id(), win)
+		end
+	end
+
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
 		self.windowCache:add(window:id(), window)
@@ -71,13 +78,6 @@ function obj:init()
 		self.windowCache:remove(windowId)
 		self:_restoreWindowsFocusForVirtualSpace()
 	end)
-
-	for _, win in ipairs(hs.window.allWindows()) do
-		if win:isStandard() then
-			self:_assignWindowToVirtualSpace(win, 1)
-			self.windowCache:add(win:id(), win)
-		end
-	end
 
 	self.spaceWatcher = hs.spaces.watcher.new(function(spaceId)
 		local actualSpace = hs.spaces.activeSpaceOnScreen()
@@ -188,6 +188,25 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 	end)
 end
 
+--- VirtualSpaces:instrument(logLevel)
+--- Method
+--- Sets the instrumentation log level to control logging behavior.
+---
+--- Parameters:
+--- * logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'
+---
+--- Returns:
+--- * None
+---
+--- Notes:
+--- * Can be called at any time to change logging verbosity
+--- * Default log level is 'warning' (no instrumentation)
+--- * 'info' level: logs operation names only
+--- * 'debug' level: logs both operation names and timing metrics
+function obj:instrument(logLevel)
+	self._telemetry:setLogLevel(logLevel)
+end
+
 function obj:_assignWindowToVirtualSpace(window, virtualSpace)
 	if not self:_isValidWindowForVirtualSpace(window) then return end
 
@@ -232,25 +251,6 @@ function obj:_focusWindowById(windowId)
 		return true
 	end
 	return false
-end
-
---- VirtualSpaces:instrument(logLevel)
---- Method
---- Sets the instrumentation log level to control logging behavior.
----
---- Parameters:
---- * logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'
----
---- Returns:
---- * None
----
---- Notes:
---- * Can be called at any time to change logging verbosity
---- * Default log level is 'warning' (no instrumentation)
---- * 'info' level: logs operation names only
---- * 'debug' level: logs both operation names and timing metrics
-function obj:instrument(logLevel)
-	self._telemetry:setLogLevel(logLevel)
 end
 
 return obj

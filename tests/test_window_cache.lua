@@ -1,4 +1,5 @@
 local lu = require('luaunit')
+local helpers = require('tests/test_helpers')
 local WindowCache = require('WindowCache')
 
 TestWindowCache = {}
@@ -50,7 +51,7 @@ function TestWindowCache:testGet_CacheMiss_CallsWindowGetAndCachesResult()
     local windowId = 123
     local windowGetCalled = false
 
-    _G.hs = {
+    helpers.withHsGlobal({
         window = {
             get = function(id)
                 windowGetCalled = true
@@ -58,18 +59,16 @@ function TestWindowCache:testGet_CacheMiss_CallsWindowGetAndCachesResult()
                 return mockWindow
             end
         }
-    }
+    }, function()
+        local cache = WindowCache.new()
+        local result = cache:get(windowId)
 
-    local cache = WindowCache.new()
-    local result = cache:get(windowId)
+        lu.assertTrue(windowGetCalled)
+        lu.assertEquals(result, mockWindow)
 
-    lu.assertTrue(windowGetCalled)
-    lu.assertEquals(result, mockWindow)
-
-    local cachedResult = cache._cache[windowId]
-    lu.assertEquals(cachedResult, mockWindow)
-
-    _G.hs = nil
+        local cachedResult = cache._cache[windowId]
+        lu.assertEquals(cachedResult, mockWindow)
+    end)
 end
 
 function TestWindowCache:testRemove_RemovesWindowFromCache()

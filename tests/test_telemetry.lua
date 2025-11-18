@@ -1,4 +1,5 @@
 local lu = require('luaunit')
+local helpers = require('tests/test_helpers')
 
 local Telemetry = require('Telemetry')
 
@@ -83,27 +84,27 @@ function TestTelemetry:testDebugLevelLogsBothOperationAndTiming()
 		end,
 		level = 4
 	}
-	local mockTimer = {
-		secondsSinceEpoch = function()
-			return 0
-		end
-	}
-	hs = { timer = mockTimer }
 
-	local tel = Telemetry.new('TestComponent', 'debug')
-	tel._logger = mockLogger
+	helpers.withHsGlobal({
+		timer = {
+			secondsSinceEpoch = function()
+				return 0
+			end
+		}
+	}, function()
+		local tel = Telemetry.new('TestComponent', 'debug')
+		tel._logger = mockLogger
 
-	tel:span('saveWindowFocus', function()
-		return 'done'
+		tel:span('saveWindowFocus', function()
+			return 'done'
+		end)
+
+		lu.assertEquals(#logged, 2)
+		lu.assertEquals(logged[1].level, 'info')
+		lu.assertStrContains(logged[1].msg, 'saveWindowFocus')
+		lu.assertEquals(logged[2].level, 'debug')
+		lu.assertStrContains(logged[2].msg, 'ms')
 	end)
-
-	hs = nil
-
-	lu.assertEquals(#logged, 2)
-	lu.assertEquals(logged[1].level, 'info')
-	lu.assertStrContains(logged[1].msg, 'saveWindowFocus')
-	lu.assertEquals(logged[2].level, 'debug')
-	lu.assertStrContains(logged[2].msg, 'ms')
 end
 
 return TestTelemetry

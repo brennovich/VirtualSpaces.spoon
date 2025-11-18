@@ -1,3 +1,7 @@
+_**Importat**: due to this [issue](https://github.com/Hammerspoon/hammerspoon/issues/3698) from Hammerspoon, this Spoon doesn't support macOS Sequoia as it heavily relies on `hs.spaces.moveWindowToSpace`._
+
+--
+
 # VirtualSpaces.spoon
 
 VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.
