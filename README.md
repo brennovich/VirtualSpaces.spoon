@@ -17,7 +17,6 @@ It creates multiple logical workspaces on a single macOS desktop by managing win
 - **Active Space:** Where visible workspace windows are displayed
 - **Storage Space:** Where hidden workspace windows are kept
 - **Virtual Workspaces:** Logical groupings that map to physical spaces
-- **Window Cache:** Performance optimization that caches window objects
 
 <video src="https://github.com/user-attachments/assets/33ad4f85-efc3-48f6-af51-ec59f1b73156"></video>
 
@@ -25,7 +24,7 @@ When switching workspaces, windows are moved between active and storage spaces t
 
 ### Native focus behavior
 
-When clicking on a Dock icon, or when and applications brings focus or even when cmd+tab is used, if the window in question is in the storage space, the spoon will switch the roles of the native spaces, making the storage space active and vice versa. This way, the user can still use native macOS focus behavior without breaking the virtual workspace metaphor. The only downside is that upon such switch the transition effection will occur.
+When clicking on a Dock icon, or when and applications brings focus or even when cmd+tab is used, if the window in question is in the storage space, the spoon will switch the roles of the native spaces, making the storage space active and vice versa. This way, the user can still use native macOS focus behavior without breaking the virtual workspace metaphor. The only downside is that upon such switch the transition effect will occur.
 
 <video src="https://github.com/user-attachments/assets/6f29eece-0b35-4a35-aaf2-8af68989ab8a"></video>
 
@@ -36,6 +35,7 @@ For that is recommended to set Reduce Motion in System Preferences > Accessibili
 ### Workspace Management
 
 #### Switch to Workspace
+
 Switch to a different virtual workspace.
 
 ```lua
@@ -43,17 +43,14 @@ spoon.VirtualSpaces:switchToVirtualSpace(virtualSpace)
 ```
 
 #### Move Window to Workspace
-Assign the focused window to a different workspace.
-
-```lua
-spoon.VirtualSpaces:moveWindowToVirtualSpace(virtualSpace)
-```
 
 Assign a given window to a different workspace.
 
 ```lua
 spoon.VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)
 ```
+
+If `window` is `nil`, the currently focused window is used.
 
 ## Typical Usage
 
@@ -80,6 +77,11 @@ To enable verbose performance metrics, call the `instrument()` method at any tim
 
 ```lua
 hs.loadSpoon("VirtualSpaces")
+
+-- Operations logging enabled
+spoon.VirtualSpaces:instrument('info')
+
+-- Operations and performance logging enabled
 spoon.VirtualSpaces:instrument('debug')
 ```
 
@@ -93,18 +95,14 @@ spoon.VirtualSpaces:instrument('debug')
 spoon.VirtualSpaces:instrument('warning')
 ```
 
-With debug logging enabled, you'll see timing information for operations like:
-- Native space management (creation, removal, switching)
-- Window movement between spaces
-- Focus management
-
-Check the Hammerspoon console for timing output.
+With debug logging enabled, you'll see timing information for operations.  Check the Hammerspoon console for timing output. I might publish Telemetry as a dedicated Spoon in the future (I still need to improve its output formatting).
 
 ## Limitations
 
-- Only works with standard windows (fullscreen windows are excluded)
+- Doesn't work on macOS Sequoia
 - Supports only one screen (once I get it stable, multi-screen support may be added)
 - You need to give up on macOS native Spaces features, like creating new spaces through Mission Control
+- Native focus events (clicking Dock icons, cmd+tabbing) will trigger macOS space transitions
 
 ## Contribute
 
