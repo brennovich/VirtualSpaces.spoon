@@ -91,7 +91,8 @@ function obj:init()
 			local windowVirtualSpace = self.model:getVirtualSpaceForWindow(focusedWindow:id())
 
 			if windowVirtualSpace and windowVirtualSpace ~= self.model:getCurrentVirtualSpace() then
-				self:switchToVirtualSpace(windowVirtualSpace)
+				self.model:setCurrentVirtualSpace(windowVirtualSpace)
+				self.model:saveFocusedWindowInVirtualSpace(windowVirtualSpace, focusedWindow:id())
 			end
 		end
 	end)

@@ -6,5 +6,6 @@ TestNativeSpaceManager = require('tests/test_native_space_manager')
 TestMoveWindowToVirtualSpace = require('tests/test_move_window_to_virtual_space')
 TestTelemetry = require('tests/test_telemetry')
 TestWindowCache = require('tests/test_window_cache')
+TestSpaceWatcher = require('tests/test_space_watcher')
 
 os.exit(lu.LuaUnit.run())
