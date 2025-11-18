@@ -71,7 +71,12 @@ local function createMocksForSetup(options)
 		end
 	}
 
-	local manager = NativeSpaceManager.new(mockSpaces, mockScreen, mockTimer, mockEventtap)
+	local manager = NativeSpaceManager.new({
+		hsSpaces = mockSpaces,
+		hsScreen = mockScreen,
+		hsTimer = mockTimer,
+		hsEventtap = mockEventtap
+	})
 
 	return {
 		manager = manager,
@@ -90,30 +95,45 @@ function TestNativeSpaceManager:testNew()
 	local mockScreen = {}
 	local mockTimer = {}
 	local mockEventtap = {}
+	local mockTelemetry = {}
 
-	local manager = NativeSpaceManager.new(mockSpaces, mockScreen, mockTimer, mockEventtap)
+	local manager = NativeSpaceManager.new({
+		hsSpaces = mockSpaces,
+		hsScreen = mockScreen,
+		hsTimer = mockTimer,
+		hsEventtap = mockEventtap,
+		telemetry = mockTelemetry
+	})
 
 	lu.assertNotNil(manager)
 	lu.assertEquals(manager._hsSpaces, mockSpaces)
 	lu.assertEquals(manager._hsScreen, mockScreen)
 	lu.assertEquals(manager._hsTimer, mockTimer)
 	lu.assertEquals(manager._hsEventtap, mockEventtap)
+	lu.assertEquals(manager._telemetry, mockTelemetry)
+end
+
+function TestNativeSpaceManager:testNewWithDefaults()
+	local manager = NativeSpaceManager.new()
+
+	lu.assertNotNil(manager)
+	lu.assertNotNil(manager._telemetry)
 end
 
 function TestNativeSpaceManager:testGetActiveSpaceBeforeSetup()
-	local manager = NativeSpaceManager.new({}, {}, {}, {})
+	local manager = NativeSpaceManager.new()
 
 	lu.assertNil(manager:getActiveSpace())
 end
 
 function TestNativeSpaceManager:testGetStorageSpaceBeforeSetup()
-	local manager = NativeSpaceManager.new({}, {}, {}, {})
+	local manager = NativeSpaceManager.new()
 
 	lu.assertNil(manager:getStorageSpace())
 end
 
 function TestNativeSpaceManager:testUpdateSpaces()
-	local manager = NativeSpaceManager.new({}, {}, {}, {})
+	local manager = NativeSpaceManager.new()
 
 	manager:updateSpaces("active-123", "storage-456")
 
@@ -122,7 +142,7 @@ function TestNativeSpaceManager:testUpdateSpaces()
 end
 
 function TestNativeSpaceManager:testUpdateSpacesMultipleTimes()
-	local manager = NativeSpaceManager.new({}, {}, {}, {})
+	local manager = NativeSpaceManager.new()
 
 	manager:updateSpaces("active-1", "storage-1")
 	lu.assertEquals(manager:getActiveSpace(), "active-1")

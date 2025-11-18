@@ -41,13 +41,16 @@ obj.license = "MIT"
 function obj:init()
 	self._telemetry = Telemetry.new('VirtualSpaces', 'warning')
 
-	self.nativeSpaceManager = NativeSpaceManager.new(nil, nil, nil, nil, self._telemetry)
+	self.nativeSpaceManager = NativeSpaceManager.new({
+		telemetry = self._telemetry
+	})
 
 	-- Ensure we have exactly two native spaces on the main screen
 	local activeSpace, storageSpace = self.nativeSpaceManager:setupForMainScreen()
 
-	self._windowSorter = WindowsSort.new(
-		hs.spaces.moveWindowToSpace, activeSpace, storageSpace, self._telemetry, hs.spaces.windowSpaces)
+	self._windowSorter = WindowsSort.new(activeSpace, storageSpace, {
+		telemetry = self._telemetry
+	})
 
 	self.model = SpacesModel.new()
 	self.windowCache = WindowCache.new(self._telemetry)

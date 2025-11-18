@@ -3,13 +3,16 @@ local Telemetry = require("Telemetry")
 local WindowsSort = {}
 WindowsSort.__index = WindowsSort
 
-function WindowsSort.new(windowMoverFn, activeNativeSpaceId, storageNativeSpaceId, telemetry, windowSpaceGetter)
+function WindowsSort.new(activeNativeSpaceId, storageNativeSpaceId, deps)
+	deps = deps or {}
 	local self = setmetatable({}, WindowsSort)
-	self._windowMoverFn = windowMoverFn
 	self._activeNativeSpaceId = activeNativeSpaceId
 	self._storageNativeSpaceId = storageNativeSpaceId
-	self._telemetry = telemetry or Telemetry.NoOp.new()
-	self._windowSpaceGetter = windowSpaceGetter
+
+	self._windowMoverFn = deps.windowMoverFn or hs.spaces.moveWindowToSpace
+	self._windowSpaceGetter = deps.windowSpaceGetter or hs.spaces.windowSpaces
+
+	self._telemetry = deps.telemetry or Telemetry.NoOp.new()
 	return self
 end
 

@@ -19,13 +19,16 @@ local MISSION_CONTROL_WAIT_TIME_S = 0.5
 local SPACE_REMOVAL_DELAY_US = 100000
 local SPACE_CREATION_DELAY_US = 10000
 
-function NativeSpaceManager.new(hsSpaces, hsScreen, hsTimer, hsEventtap, telemetry)
+function NativeSpaceManager.new(deps)
+	deps = deps or {}
 	local self = setmetatable({}, NativeSpaceManager)
-	self._hsSpaces = hsSpaces or hs.spaces
-	self._hsScreen = hsScreen or hs.screen
-	self._hsTimer = hsTimer or hs.timer
-	self._hsEventtap = hsEventtap or hs.eventtap
-	self._telemetry = telemetry or Telemetry.NoOp.new()
+
+	self._hsSpaces = deps.hsSpaces or hs.spaces
+	self._hsScreen = deps.hsScreen or hs.screen
+	self._hsTimer = deps.hsTimer or hs.timer
+	self._hsEventtap = deps.hsEventtap or hs.eventtap
+
+	self._telemetry = deps.telemetry or Telemetry.NoOp.new()
 	self._activeSpace = nil
 	self._storageSpace = nil
 	return self

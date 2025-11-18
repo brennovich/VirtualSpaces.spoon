@@ -4,12 +4,37 @@ local WindowsSort = require('WindowsSort')
 
 TestWindowsSort = {}
 
+local function createDeps(options)
+	options = options or {}
+	return {
+		windowMoverFn = options.windowMoverFn or function() end,
+		windowSpaceGetter = options.windowSpaceGetter or function() return {} end,
+		telemetry = options.telemetry
+	}
+end
+
 function TestWindowsSort:testNew()
-	local mockMover = function() end
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456")
+	local sorter = WindowsSort.new("active-123", "storage-456", createDeps())
 
 	lu.assertEquals(sorter._activeNativeSpaceId, "active-123")
 	lu.assertEquals(sorter._storageNativeSpaceId, "storage-456")
+	lu.assertNotNil(sorter._telemetry)
+end
+
+function TestWindowsSort:testNewWithCustomDeps()
+	local mockMover = function() end
+	local mockGetter = function() end
+	local mockTelemetry = {}
+
+	local sorter = WindowsSort.new("active-123", "storage-456", {
+		windowMoverFn = mockMover,
+		windowSpaceGetter = mockGetter,
+		telemetry = mockTelemetry
+	})
+
+	lu.assertEquals(sorter._windowMoverFn, mockMover)
+	lu.assertEquals(sorter._windowSpaceGetter, mockGetter)
+	lu.assertEquals(sorter._telemetry, mockTelemetry)
 end
 
 function TestWindowsSort:testMovesTargetVirtualSpaceWindowsToActiveSpace()
@@ -18,7 +43,7 @@ function TestWindowsSort:testMovesTargetVirtualSpaceWindowsToActiveSpace()
 		table.insert(moves, {winId = winId, spaceId = spaceId})
 	end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456")
+	local sorter = WindowsSort.new("active-123", "storage-456", createDeps({windowMoverFn = mockMover}))
 
 	local categorizedWindows = {
 		toActive = {"win2", "win3"},
@@ -46,7 +71,7 @@ function TestWindowsSort:testMovesCurrentVirtualSpaceWindowsToStorageSpace()
 		table.insert(moves, {winId = winId, spaceId = spaceId})
 	end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456")
+	local sorter = WindowsSort.new("active-123", "storage-456", createDeps({windowMoverFn = mockMover}))
 
 	local categorizedWindows = {
 		toActive = {"win2"},
@@ -70,7 +95,7 @@ end
 function TestWindowsSort:testSwapsSpacesWhenCurrentNativeSpaceIsStorage()
 	local mockMover = function() end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456")
+	local sorter = WindowsSort.new("active-123", "storage-456", createDeps({windowMoverFn = mockMover}))
 
 	local categorizedWindows = {
 		toActive = {"win2"},
@@ -92,7 +117,7 @@ function TestWindowsSort:testMovesOtherWindowsToStorageWhenSwapping()
 		table.insert(moves, {winId = winId, spaceId = spaceId})
 	end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456")
+	local sorter = WindowsSort.new("active-123", "storage-456", createDeps({windowMoverFn = mockMover}))
 
 	local categorizedWindows = {
 		toActive = {"win2"},
@@ -116,7 +141,7 @@ end
 function TestWindowsSort:testDoesNotSwapWhenCurrentNativeSpaceIsActive()
 	local mockMover = function() end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456")
+	local sorter = WindowsSort.new("active-123", "storage-456", createDeps({windowMoverFn = mockMover}))
 
 	local categorizedWindows = {
 		toActive = {},
@@ -138,7 +163,7 @@ function TestWindowsSort:testHandlesEmptyWindowMap()
 		moveCount = moveCount + 1
 	end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456")
+	local sorter = WindowsSort.new("active-123", "storage-456", createDeps({windowMoverFn = mockMover}))
 
 	local categorizedWindows = {
 		toActive = {},
@@ -154,7 +179,7 @@ end
 function TestWindowsSort:testPersistsSwappedSpacesInInstance()
 	local mockMover = function() end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456")
+	local sorter = WindowsSort.new("active-123", "storage-456", createDeps({windowMoverFn = mockMover}))
 
 	local categorizedWindows = {
 		toActive = {},
@@ -183,7 +208,10 @@ function TestWindowsSort:testSkipsWindowMoveWhenWindowAlreadyInTargetSpace()
 		return {}
 	end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456", nil, mockSpaceGetter)
+	local sorter = WindowsSort.new("active-123", "storage-456", {
+		windowMoverFn = mockMover,
+		windowSpaceGetter = mockSpaceGetter
+	})
 
 	local categorizedWindows = {
 		toActive = {"win2"},
@@ -209,7 +237,10 @@ function TestWindowsSort:testMovesWindowWhenWindowNotInTargetSpace()
 		return {}
 	end
 
-	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456", nil, mockSpaceGetter)
+	local sorter = WindowsSort.new("active-123", "storage-456", {
+		windowMoverFn = mockMover,
+		windowSpaceGetter = mockSpaceGetter
+	})
 
 	local categorizedWindows = {
 		toActive = {"win2"},

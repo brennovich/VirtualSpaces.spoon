@@ -1,5 +1,4 @@
 .PHONY: test test/acceptance install-deps install
-
 build: docs.json
 	mkdir -p release/VirtualSpaces.spoon
 	cp init.lua SpacesModel.lua WindowCache.lua WindowsSort.lua NativeSpaceManager.lua Telemetry.lua docs.json release/VirtualSpaces.spoon/
@@ -19,6 +18,9 @@ install-deps:
 
 test:
 	eval $$(luarocks --local path) && lua tests/test.lua -o TAP
+
+.tags: **/*.lua
+	ctags -R --exclude=.git --exclude=*.md --exclude=release --exclude=tests --exclude=docs.json -f .tags .
 
 test/acceptance:
 	./tests/acceptance.sh
