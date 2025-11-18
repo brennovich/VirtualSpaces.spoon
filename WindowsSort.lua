@@ -3,13 +3,33 @@ local Telemetry = require("Telemetry")
 local WindowsSort = {}
 WindowsSort.__index = WindowsSort
 
-function WindowsSort.new(windowMoverFn, activeNativeSpaceId, storageNativeSpaceId, telemetry)
+function WindowsSort.new(windowMoverFn, activeNativeSpaceId, storageNativeSpaceId, telemetry, windowSpaceGetter)
 	local self = setmetatable({}, WindowsSort)
 	self._windowMoverFn = windowMoverFn
 	self._activeNativeSpaceId = activeNativeSpaceId
 	self._storageNativeSpaceId = storageNativeSpaceId
 	self._telemetry = telemetry or Telemetry.NoOp.new()
+	self._windowSpaceGetter = windowSpaceGetter
 	return self
+end
+
+function WindowsSort:_isWindowInSpace(winId, targetSpaceId)
+	if not self._windowSpaceGetter then
+		return false
+	end
+
+	local spaces = self._windowSpaceGetter(winId)
+	if not spaces then
+		return false
+	end
+
+	for _, spaceId in ipairs(spaces) do
+		if spaceId == targetSpaceId then
+			return true
+		end
+	end
+
+	return false
 end
 
 function WindowsSort:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, currentNativeSpace)
@@ -23,22 +43,28 @@ function WindowsSort:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedW
 		end
 
 		for _, winId in ipairs(categorizedWindows.toActive) do
-			self._telemetry:span("windowMoverFn(toActive)", function()
-				self._windowMoverFn(winId, activeSpace)
-			end)
+			if not self:_isWindowInSpace(winId, activeSpace) then
+				self._telemetry:span("windowMoverFn(toActive)", function()
+					self._windowMoverFn(winId, activeSpace)
+				end)
+			end
 		end
 
 		for _, winId in ipairs(categorizedWindows.toStorage) do
-			self._telemetry:span("windowMoverFn(toStorage)", function()
-				self._windowMoverFn(winId, storageSpace)
-			end)
+			if not self:_isWindowInSpace(winId, storageSpace) then
+				self._telemetry:span("windowMoverFn(toStorage)", function()
+					self._windowMoverFn(winId, storageSpace)
+				end)
+			end
 		end
 
 		if nativeSpaceSwitchHappened then
 			for _, winId in ipairs(categorizedWindows.others) do
-				self._telemetry:span("windowMoverFn(others)", function()
-					self._windowMoverFn(winId, storageSpace)
-				end)
+				if not self:_isWindowInSpace(winId, storageSpace) then
+					self._telemetry:span("windowMoverFn(others)", function()
+						self._windowMoverFn(winId, storageSpace)
+					end)
+				end
 			end
 
 			self._activeNativeSpaceId = activeSpace

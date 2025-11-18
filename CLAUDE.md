@@ -10,14 +10,17 @@ VirtualSpaces is a Hammerspoon Spoon that implements virtual workspace managemen
 
 ### Running Tests
 ```bash
-# Run all tests
-lua tests/test.lua
+# Recommended: Run tests via make
+make test
 
-# Run tests with TAP output
-lua tests/test.lua -o TAP
+# Or via luarocks
+luarocks test
 
-# Run via luarocks
+# Direct invocation (requires luarocks path setup)
 eval $(luarocks --local path) && lua tests/test.lua -o TAP
+
+# Without TAP output
+lua tests/test.lua
 ```
 
 ### Testing Individual Modules
@@ -26,12 +29,18 @@ Tests are organized by module in `tests/`. Each test file can be run independent
 - `tests/test_spaces_model.lua` - SpacesModel state management
 - `tests/test_native_space_manager.lua` - NativeSpaceManager setup
 - `tests/test_virtual_spaces.lua` - Main integration tests
+- `tests/test_telemetry.lua` - Telemetry/instrumentation tests
+- `tests/test_window_cache.lua` - WindowCache caching logic
 
 ### Development
 This is a Hammerspoon Spoon. Load it in Hammerspoon with:
 ```lua
 hs.loadSpoon("VirtualSpaces")
 spoon.VirtualSpaces:init()
+
+-- Enable telemetry for debugging
+spoon.VirtualSpaces:instrument('info')   -- Log operations only
+spoon.VirtualSpaces:instrument('debug')  -- Log operations + performance
 ```
 
 ## Architecture
@@ -49,11 +58,33 @@ spoon.VirtualSpaces:init()
    - Takes categorized windows and maps them to native spaces
    - Handles space swapping when user navigates to storage space
    - Injects `windowMoverFn` (typically `hs.spaces.moveWindowToSpace`)
+   - Injects `windowSpaceGetter` (typically `hs.spaces.windowSpaces`) to check current window location
+   - Skips window moves when window is already in target space (performance optimization)
 
 3. **NativeSpaceManager** (`NativeSpaceManager.lua`): macOS Spaces setup
    - Ensures exactly two native spaces exist on main screen
    - Designates first space as "active", second as "storage"
    - Handles space creation/removal on initialization
+
+### Telemetry System (`Telemetry.lua`)
+
+Provides observability for operations and performance:
+- `span(operationName, fn)` - Wraps operations with logging and timing
+- Log level 'info': logs operation names only
+- Log level 'debug': logs operation names + performance timing
+- `NoOpTelemetry` - Null object pattern when telemetry disabled
+- All components use `self._telemetry:span()` for instrumentation
+
+### Window Cache (`WindowCache.lua`)
+
+Performance optimization that caches window objects:
+- Eliminates 40-130ms `hs.window.get()` bottleneck during focus operations
+- Validates cached windows on retrieval (checks window object accessibility via `id()`)
+- Does not validate window state (`isStandard()`) to avoid expensive checks
+- Self-healing: automatically removes stale entries when window objects become inaccessible
+- Lazy population: fetches via `window.get()` on cache miss, then caches result
+- Populated from window filter events and initialization
+- Invalidated on window destruction
 
 ### Main Controller (`init.lua`)
 
@@ -61,21 +92,30 @@ Orchestrates all components:
 - Initializes native space setup via `NativeSpaceManager`
 - Creates `WindowsSort` with space IDs and window mover function
 - Creates `SpacesModel` for state tracking
+- Creates `WindowCache` for performance optimization
+- Creates `Telemetry` for instrumentation
 - Sets up window filters for automatic window assignment
 - Implements space watcher to detect manual navigation to storage space
-- Provides public API: `switchToVirtualSpace()`, `moveWindowToVirtualSpace()`
+- Provides public API: `switchToVirtualSpace()`, `moveWindowToVirtualSpace()`, `instrument()`
 
 ### Data Flow
 
 **Window Creation:**
 1. `windowFilter` detects new window
 2. Assigned to current virtual space in `SpacesModel`
-3. Window stays in active native space
+3. Window object added to `WindowCache`
+4. Window stays in active native space
 
 **Workspace Switch:**
 1. `SpacesModel.categorizeWindowsForTransition()` groups windows: toActive, toStorage, others
 2. `WindowsSort.mapWindowsToNativeSpaces()` moves windows to correct native spaces
-3. Focus restored to last focused window in target virtual space
+3. Focus restored to last focused window in target virtual space (retrieved via `WindowCache`)
+
+**Window Destruction:**
+1. `windowFilter` detects window destroyed
+2. Removed from `SpacesModel`
+3. Removed from `WindowCache`
+4. Focus restored if needed
 
 **Manual Navigation:**
 1. `spaceWatcher` detects user navigated to storage space
@@ -96,6 +136,13 @@ end
 ```
 
 Mock Hammerspoon APIs by injecting functions/objects into constructors (see `NativeSpaceManager.new()` parameters).
+
+### Telemetry in Tests
+
+Components accept an optional `telemetry` parameter in their constructors:
+- When `nil`, automatically creates `NoOpTelemetry` (null object pattern)
+- Tests can inject mock telemetry to verify logging behavior
+- No need for nil checks - `self._telemetry` always exists
 
 ## Key Constraints
 

@@ -6,7 +6,7 @@ TestWindowCache = {}
 function TestWindowCache:testGet_ReturnsCachedWindow()
     local cache = WindowCache.new()
     local mockWindow = {
-        isStandard = function() return true end
+        id = function() return 123 end
     }
     local windowId = 123
 
@@ -16,23 +16,24 @@ function TestWindowCache:testGet_ReturnsCachedWindow()
     lu.assertEquals(result, mockWindow)
 end
 
-function TestWindowCache:testGet_InvalidWindow_RemovesFromCacheAndReturnsNil()
+function TestWindowCache:testGet_InvalidWindow_ReturnsCachedWindowWithoutValidation()
     local cache = WindowCache.new()
     local mockInvalidWindow = {
-        isStandard = function() return false end
+        isStandard = function() return false end,
+        id = function() return 123 end
     }
     local windowId = 123
 
     cache:add(windowId, mockInvalidWindow)
     local result = cache:get(windowId)
 
-    lu.assertIsNil(result)
+    lu.assertEquals(result, mockInvalidWindow)
 end
 
 function TestWindowCache:testGet_ErrorAccessingWindow_RemovesFromCacheAndReturnsNil()
     local cache = WindowCache.new()
     local mockStaleWindow = {
-        isStandard = function() error("window destroyed") end
+        id = function() error("window destroyed") end
     }
     local windowId = 123
 
@@ -44,7 +45,7 @@ end
 
 function TestWindowCache:testGet_CacheMiss_CallsWindowGetAndCachesResult()
     local mockWindow = {
-        isStandard = function() return true end
+        id = function() return 123 end
     }
     local windowId = 123
     local windowGetCalled = false
@@ -74,7 +75,7 @@ end
 function TestWindowCache:testRemove_RemovesWindowFromCache()
     local cache = WindowCache.new()
     local mockWindow = {
-        isStandard = function() return true end
+        id = function() return 123 end
     }
     local windowId = 123
 

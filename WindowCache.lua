@@ -16,11 +16,11 @@ function WindowCache:get(windowId)
     local cached = self._cache[windowId]
 
     if cached then
-        local success, isValid = pcall(function()
-            return cached:isStandard()
+        local success = pcall(function()
+            cached:id()
         end)
 
-        if success and isValid then
+        if success then
             return cached
         else
             self:remove(windowId)

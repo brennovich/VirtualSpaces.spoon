@@ -47,7 +47,7 @@ function obj:init()
 	local activeSpace, storageSpace = self.nativeSpaceManager:setupForMainScreen()
 
 	self._windowSorter = WindowsSort.new(
-		hs.spaces.moveWindowToSpace, activeSpace, storageSpace, self._telemetry)
+		hs.spaces.moveWindowToSpace, activeSpace, storageSpace, self._telemetry, hs.spaces.windowSpaces)
 
 	self.model = SpacesModel.new()
 	self.windowCache = WindowCache.new(self._telemetry)
@@ -176,6 +176,7 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 		local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
 			and self.nativeSpaceManager:getActiveSpace()
 			or self.nativeSpaceManager:getStorageSpace()
+
 		self._telemetry:span("moveWindowToSpace()", function()
 			hs.spaces.moveWindowToSpace(window, targetNativeSpace)
 		end)

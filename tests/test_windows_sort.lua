@@ -168,4 +168,60 @@ function TestWindowsSort:testPersistsSwappedSpacesInInstance()
 	lu.assertEquals(sorter._storageNativeSpaceId, "active-123")
 end
 
+function TestWindowsSort:testSkipsWindowMoveWhenWindowAlreadyInTargetSpace()
+	local moves = {}
+	local mockMover = function(winId, spaceId)
+		table.insert(moves, {winId = winId, spaceId = spaceId})
+	end
+
+	local mockSpaceGetter = function(winId)
+		if winId == "win2" then
+			return {"active-123"}
+		elseif winId == "win1" then
+			return {"storage-456"}
+		end
+		return {}
+	end
+
+	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456", nil, mockSpaceGetter)
+
+	local categorizedWindows = {
+		toActive = {"win2"},
+		toStorage = {"win1"},
+		others = {}
+	}
+
+	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "active-123")
+
+	lu.assertEquals(#moves, 0)
+end
+
+function TestWindowsSort:testMovesWindowWhenWindowNotInTargetSpace()
+	local moves = {}
+	local mockMover = function(winId, spaceId)
+		table.insert(moves, {winId = winId, spaceId = spaceId})
+	end
+
+	local mockSpaceGetter = function(winId)
+		if winId == "win2" then
+			return {"storage-456"}
+		end
+		return {}
+	end
+
+	local sorter = WindowsSort.new(mockMover, "active-123", "storage-456", nil, mockSpaceGetter)
+
+	local categorizedWindows = {
+		toActive = {"win2"},
+		toStorage = {},
+		others = {}
+	}
+
+	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "active-123")
+
+	lu.assertEquals(#moves, 1)
+	lu.assertEquals(moves[1].winId, "win2")
+	lu.assertEquals(moves[1].spaceId, "active-123")
+end
+
 return TestWindowsSort
