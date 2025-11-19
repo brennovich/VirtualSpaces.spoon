@@ -14,6 +14,7 @@ local SpacesModel = require("SpacesModel")
 local NativeSpaceManager = require("NativeSpaceManager")
 local Telemetry = require("Telemetry")
 local WindowCache = require("WindowCache")
+local TabbedWindows = require("TabbedWindows")
 
 local obj = {}
 obj.__index = obj
@@ -54,6 +55,7 @@ function obj:init()
 
 	self.model = SpacesModel.new()
 	self.windowCache = WindowCache.new(self._telemetry)
+	self.tabbedWindows = TabbedWindows.new(self._telemetry)
 	self.windowFilter = hs.window.filter.new()
 
 	-- This filter is unused but it seems to help address this bug:
@@ -63,19 +65,34 @@ function obj:init()
 
 	for _, win in ipairs(hs.window.allWindows()) do
 		if win:isStandard() then
-			self:_assignWindowToVirtualSpace(win, 1)
+			self.tabbedWindows:onWindowCreated(win)
+			self:_assignWindowAndTabGroupToVirtualSpace(win, 1)
 			self.windowCache:add(win:id(), win)
 		end
 	end
 
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
-		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
+		self.tabbedWindows:onWindowCreated(window)
+		self:_assignWindowAndTabGroupToVirtualSpace(window, self.model:getCurrentVirtualSpace())
 		self.windowCache:add(window:id(), window)
 	end)
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
 		local windowId = window:id()
+		local tabSiblings = self.tabbedWindows:getTabSiblingsBeforeDestruction(windowId)
+
+		self.tabbedWindows:onWindowDestroyed(windowId)
 		self.model:removeWindow(windowId)
 		self.windowCache:remove(windowId)
+
+		if tabSiblings and #tabSiblings > 0 then
+			for _, siblingId in ipairs(tabSiblings) do
+				if self:_focusWindowById(siblingId) then
+					self.model:saveFocusedWindowInVirtualSpace(self.model:getCurrentVirtualSpace(), siblingId)
+					return
+				end
+			end
+		end
+
 		self:_restoreWindowsFocusForVirtualSpace()
 	end)
 
@@ -175,7 +192,7 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 			if not window then return end
 		end
 
-		self:_assignWindowToVirtualSpace(window, virtualSpace)
+		self:_assignWindowAndTabGroupToVirtualSpace(window, virtualSpace)
 
 		local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
 			and self.nativeSpaceManager:getActiveSpace()
@@ -215,6 +232,26 @@ function obj:_assignWindowToVirtualSpace(window, virtualSpace)
 		local winId = window:id()
 		self.model:assignWindowToVirtualSpace(winId, virtualSpace)
 		self.model:saveFocusedWindowInVirtualSpace(virtualSpace, winId)
+	end)
+end
+
+function obj:_assignWindowAndTabGroupToVirtualSpace(window, virtualSpace)
+	if not self:_isValidWindowForVirtualSpace(window) then return end
+
+	return self._telemetry:span("assignWindowAndTabGroupToVirtualSpace", function()
+		local windowId = window:id()
+		local tabGroup = self.tabbedWindows:getTabGroupForWindow(windowId)
+
+		if tabGroup then
+			self._telemetry:span(string.format("assignTabGroup(%d windows)", #tabGroup), function()
+				for _, tabWindowId in ipairs(tabGroup) do
+					self.model:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
+				end
+				self.model:saveFocusedWindowInVirtualSpace(virtualSpace, windowId)
+			end)
+		else
+			self:_assignWindowToVirtualSpace(window, virtualSpace)
+		end
 	end)
 end
 

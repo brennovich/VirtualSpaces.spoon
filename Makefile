@@ -1,7 +1,7 @@
 .PHONY: test test/acceptance install-deps install
 build: docs.json
 	mkdir -p release/VirtualSpaces.spoon
-	cp init.lua SpacesModel.lua WindowCache.lua WindowsSort.lua NativeSpaceManager.lua Telemetry.lua docs.json release/VirtualSpaces.spoon/
+	cp ./*.lua docs.json release/VirtualSpaces.spoon/
 	cd release && zip -r VirtualSpaces.spoon.zip VirtualSpaces.spoon
 
 install: build
