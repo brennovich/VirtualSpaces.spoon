@@ -52,6 +52,10 @@ spoon.VirtualSpaces:instrument('debug')  -- Log operations + performance
    - Tracks virtual-space-to-windows mappings (`_virtualSpaceWindowsMap`)
    - Tracks focused window per virtual space (`_focusedWindows`)
    - Current virtual space tracking (`_currentVirtualSpace`)
+   - Tabbed window management:
+     - `_windows` - registry of window metadata (id, tabCount, frame, appName)
+     - `_tabGroups` - groups of windows that share the same tabs
+     - `_windowToTabGroup` - mapping from window ID to its tab group
    - No side effects, pure data operations
 
 2. **WindowsSort** (`WindowsSort.lua`): Window movement logic
@@ -65,6 +69,40 @@ spoon.VirtualSpaces:instrument('debug')  -- Log operations + performance
    - Ensures exactly two native spaces exist on main screen
    - Designates first space as "active", second as "storage"
    - Handles space creation/removal on initialization
+
+### Window Module (`Window.lua`)
+
+Provides window metadata extraction and comparison utilities:
+- `Window.new(hsWindow)` - Creates window metadata object with:
+  - `id` - window ID
+  - `tabCount` - number of tabs (from `hsWindow:tabCount()`)
+  - `frame` - window frame/position
+  - `appName` - application name
+- `Window.makeKey(frame, appName)` - Creates composite key for indexing windows by position and app
+- `Window.framesEqual(frame1, frame2)` - Compares two frames with Y_TOLERANCE for y-coordinate
+- `Window.Y_TOLERANCE` - Tolerance (10 pixels) for y-coordinate comparison to handle Terminal.app tabs
+- Used by SpacesModel to detect and group tabbed windows (windows with same frame + app)
+
+### Tabbed Windows Support
+
+VirtualSpaces automatically detects and manages tabbed windows (Safari tabs, Terminal tabs, etc.):
+
+**Detection Strategy:**
+- Tabbed windows share similar frame positions (with 10-pixel y-coordinate tolerance) and belong to the same application
+- Y-coordinate tolerance handles Terminal.app tabs which have slightly different y positions
+- Uses `hsWindow:tabCount()` to identify windows with multiple tabs
+- Groups windows by matching `frame + appName` combination
+
+**Behavior:**
+- When a tabbed window is moved to a virtual space, all tabs in the group move together
+- When a tab is closed, focus is restored to a sibling tab if available
+- Tab groups are automatically created/updated as windows are created or destroyed
+- Maintains tab group consistency across virtual space transitions
+
+**Implementation:**
+- SpacesModel maintains tab group registry indexed by frame+appName
+- Tab detection occurs during `registerWindowObject()` on window creation
+- `_assignWindowAndTabGroupToVirtualSpace()` ensures entire tab groups move atomically
 
 ### Telemetry System (`Telemetry.lua`)
 
@@ -96,15 +134,20 @@ Orchestrates all components:
 - Creates `Telemetry` for instrumentation
 - Sets up window filters for automatic window assignment
 - Implements space watcher to detect manual navigation to storage space
+- Handles tabbed window groups: when moving a window, all tabs in the group move together
 - Provides public API: `switchToVirtualSpace()`, `moveWindowToVirtualSpace()`, `instrument()`
 
 ### Data Flow
 
 **Window Creation:**
 1. `windowFilter` detects new window
-2. Assigned to current virtual space in `SpacesModel`
-3. Window object added to `WindowCache`
-4. Window stays in active native space
+2. Window registered in `SpacesModel` via `registerWindowObject()`:
+   - Extracts metadata (id, tabCount, frame, appName) via `Window.new()`
+   - If `tabCount > 1`, checks for existing tab group with same frame+app
+   - Creates new tab group or adds to existing group
+3. Assigned to current virtual space (entire tab group if tabbed)
+4. Window object added to `WindowCache`
+5. Window stays in active native space
 
 **Workspace Switch:**
 1. `SpacesModel.categorizeWindowsForTransition()` groups windows: toActive, toStorage, others
@@ -113,14 +156,27 @@ Orchestrates all components:
 
 **Window Destruction:**
 1. `windowFilter` detects window destroyed
-2. Removed from `SpacesModel`
-3. Removed from `WindowCache`
-4. Focus restored if needed
+2. Tab siblings retrieved via `getTabSiblingsBeforeDestruction()` (if part of tab group)
+3. Window unregistered from `SpacesModel` via `unregisterWindowObject()`:
+   - Removed from tab group
+   - Tab group deleted if empty
+4. Removed from virtual space assignment
+5. Removed from `WindowCache`
+6. Focus restored to tab sibling if available, otherwise to other windows in virtual space
 
 **Manual Navigation:**
 1. `spaceWatcher` detects user navigated to storage space
 2. If focused window belongs to different virtual space, switch to that virtual space
 3. This enables discovering "hidden" windows by navigating to storage space
+
+**Moving Tabbed Windows:**
+1. `moveWindowToVirtualSpace()` called with a window
+2. `_assignWindowAndTabGroupToVirtualSpace()` checks if window is part of a tab group
+3. If tabbed (via `getTabGroupForWindow()`):
+   - All windows in the tab group are assigned to the target virtual space
+   - Entire group moves together to maintain tab consistency
+4. If not tabbed, single window is assigned normally
+5. Window(s) moved to appropriate native space (active or storage based on target)
 
 ## Testing Strategy
 

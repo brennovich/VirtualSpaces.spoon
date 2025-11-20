@@ -14,7 +14,6 @@ function SpacesModel.new()
 	self._currentVirtualSpace = 1
 
 	self._windows = {}
-	self._windowRegistry = {}
 	self._tabGroups = {}
 	self._windowToTabGroup = {}
 	self._nextGroupId = 1
@@ -165,33 +164,20 @@ end
 
 function SpacesModel:_registerWindow(windowData)
 	self._windows[windowData.id] = windowData
-
-	local key = Window.makeKey(windowData.frame, windowData.appName)
-	if not self._windowRegistry[key] then
-		self._windowRegistry[key] = {}
-	end
-	table.insert(self._windowRegistry[key], windowData.id)
 end
 
 function SpacesModel:_unregisterWindow(windowId)
 	self._windows[windowId] = nil
-
-	for key, windowIds in pairs(self._windowRegistry) do
-		for i, id in ipairs(windowIds) do
-			if id == windowId then
-				table.remove(windowIds, i)
-				if #windowIds == 0 then
-					self._windowRegistry[key] = nil
-				end
-				return
-			end
-		end
-	end
 end
 
 function SpacesModel:_findRegisteredWindowsByFrameAndApp(frame, appName)
-	local key = Window.makeKey(frame, appName)
-	return self._windowRegistry[key] or {}
+	local matches = {}
+	for windowId, windowData in pairs(self._windows) do
+		if windowData.appName == appName and Window.framesEqual(windowData.frame, frame) then
+			table.insert(matches, windowId)
+		end
+	end
+	return matches
 end
 
 function SpacesModel:_createTabGroup(windowData)

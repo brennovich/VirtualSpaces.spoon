@@ -387,4 +387,34 @@ function TestSpacesModel:testAssignWindowWithNilVirtualSpace()
 	lu.assertNil(model:getVirtualSpaceForWindow(100))
 end
 
+function TestSpacesModel:testTerminalAppTabsWithSlightlyDifferentYCoordinatesAreGroupedTogether()
+	local model = SpacesModel.new()
+
+	local window1 = {
+		id = function() return 3426 end,
+		tabCount = function() return 1 end,
+		frame = function() return {x = 155.0, y = 30.0, w = 748.0, h = 879.0} end,
+		application = function() return {name = function() return "Terminal" end} end
+	}
+
+	local window2 = {
+		id = function() return 3459 end,
+		tabCount = function() return 2 end,
+		frame = function() return {x = 155.0, y = 21.0, w = 748.0, h = 879.0} end,
+		application = function() return {name = function() return "Terminal" end} end
+	}
+
+	model:registerWindowObject(window1)
+	model:registerWindowObject(window2)
+
+	local tabGroup1 = model:getTabGroupForWindow(3426)
+	local tabGroup2 = model:getTabGroupForWindow(3459)
+
+	lu.assertNotNil(tabGroup1, "Window 3426 should be in a tab group")
+	lu.assertNotNil(tabGroup2, "Window 3459 should be in a tab group")
+	lu.assertEquals(#tabGroup1, 2, "Tab group should contain 2 windows")
+	lu.assertTrue(table.contains(tabGroup1, 3426), "Tab group should contain window 3426")
+	lu.assertTrue(table.contains(tabGroup1, 3459), "Tab group should contain window 3459")
+end
+
 return TestSpacesModel
