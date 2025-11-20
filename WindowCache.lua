@@ -8,7 +8,8 @@ function WindowCache.new(telemetry)
     return self
 end
 
-function WindowCache:add(windowId, window)
+function WindowCache:add(window)
+    local windowId = window:id()
     self._cache[windowId] = window
 end
 
@@ -30,7 +31,7 @@ function WindowCache:get(windowId)
     if hs and hs.window then
         local window = hs.window.get(windowId)
         if window then
-            self:add(windowId, window)
+            self:add(window)
         end
         return window
     end

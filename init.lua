@@ -63,16 +63,16 @@ function obj:init()
 
 	for _, win in ipairs(hs.window.allWindows()) do
 		self:_assignWindowToVirtualSpace(win, 1)
-		self.windowCache:add(win:id(), win)
+		self.windowCache:add(win)
 	end
 
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
-		self.windowCache:add(window:id(), window)
+		self.windowCache:add(window)
 	end)
 	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
-		self.windowCache:add(window:id(), window)
+		self.windowCache:add(window)
 	end)
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
 		local windowId = window:id()
