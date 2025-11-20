@@ -14,7 +14,6 @@ local SpacesModel = require("SpacesModel")
 local NativeSpaceManager = require("NativeSpaceManager")
 local Telemetry = require("Telemetry")
 local WindowCache = require("WindowCache")
-local TabbedWindows = require("TabbedWindows")
 
 local obj = {}
 obj.__index = obj
@@ -55,7 +54,6 @@ function obj:init()
 
 	self.model = SpacesModel.new()
 	self.windowCache = WindowCache.new(self._telemetry)
-	self.tabbedWindows = TabbedWindows.new(self._telemetry)
 	self.windowFilter = hs.window.filter.new()
 
 	-- This filter is unused but it seems to help address this bug:
@@ -65,22 +63,31 @@ function obj:init()
 
 	for _, win in ipairs(hs.window.allWindows()) do
 		if win:isStandard() then
-			self.tabbedWindows:onWindowCreated(win)
+			self.model:registerWindowObject(win)
 			self:_assignWindowAndTabGroupToVirtualSpace(win, 1)
 			self.windowCache:add(win:id(), win)
 		end
 	end
 
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
-		self.tabbedWindows:onWindowCreated(window)
+		self.model:registerWindowObject(window)
 		self:_assignWindowAndTabGroupToVirtualSpace(window, self.model:getCurrentVirtualSpace())
 		self.windowCache:add(window:id(), window)
 	end)
+	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
+		local windowId = window:id()
+		if not self.model._windows[windowId] then
+			self.model:registerWindowObject(window)
+			local currentVS = self.model:getCurrentVirtualSpace()
+			self:_assignWindowAndTabGroupToVirtualSpace(window, currentVS)
+			self.windowCache:add(windowId, window)
+		end
+	end)
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
 		local windowId = window:id()
-		local tabSiblings = self.tabbedWindows:getTabSiblingsBeforeDestruction(windowId)
+		local tabSiblings = self.model:getTabSiblingsBeforeDestruction(windowId)
 
-		self.tabbedWindows:onWindowDestroyed(windowId)
+		self.model:unregisterWindowObject(windowId)
 		self.model:removeWindow(windowId)
 		self.windowCache:remove(windowId)
 
@@ -240,7 +247,7 @@ function obj:_assignWindowAndTabGroupToVirtualSpace(window, virtualSpace)
 
 	return self._telemetry:span("assignWindowAndTabGroupToVirtualSpace", function()
 		local windowId = window:id()
-		local tabGroup = self.tabbedWindows:getTabGroupForWindow(windowId)
+		local tabGroup = self.model:getTabGroupForWindow(windowId)
 
 		if tabGroup then
 			self._telemetry:span(string.format("assignTabGroup(%d windows)", #tabGroup), function()

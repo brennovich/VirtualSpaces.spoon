@@ -7,6 +7,5 @@ TestMoveWindowToVirtualSpace = require('tests/test_move_window_to_virtual_space'
 TestTelemetry = require('tests/test_telemetry')
 TestWindowCache = require('tests/test_window_cache')
 TestSpaceWatcher = require('tests/test_space_watcher')
-TestTabbedWindows = require('tests/test_tabbed_windows')
 
 os.exit(lu.LuaUnit.run())

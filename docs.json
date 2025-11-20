@@ -18,21 +18,26 @@
     "Deprecated" : [
 
     ],
-    "desc" : "VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.",
     "type" : "Module",
+    "desc" : "VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.",
     "Constructor" : [
 
     ],
-    "doc" : "VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.\n\nIt creates multiple logical workspaces on a single macOS desktop by managing window visibility across two macOS spaces: one active and one for storage. Its goal is to provide a instant switching experience between workspaces without the overhead of managing multiple physical desktops and superfulous macOS transition effects.\n\n--- Download: [VirtualSpaces.spoon.zip](https:\/\/github.com\/brennovich\/VirtualSpaces.spoon\/releases\/latest\/download\/VirtualSpaces.spoon.zip)",
+    "Field" : [
+
+    ],
     "Method" : [
       {
-        "doc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.\n\nParameters:\n* None\n\nReturns:\n* The VirtualSpaces object\n\nNotes:\n* Ensures exactly two native macOS spaces exist on the main screen\n* Automatically assigns all existing windows to virtual space 1\n* Sets up window filters to track window creation and destruction\n* Implements space watcher to detect manual navigation to storage space",
+        "parameters" : [
+          "* None",
+          ""
+        ],
         "stripped_doc" : [
           "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
           ""
         ],
-        "name" : "init",
-        "def" : "VirtualSpaces:init()",
+        "desc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
+        "doc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.\n\nParameters:\n* None\n\nReturns:\n* The VirtualSpaces object\n\nNotes:\n* Ensures exactly two native macOS spaces exist on the main screen\n* Automatically assigns all existing windows to virtual space 1\n* Sets up window filters to track window creation and destruction\n* Implements space watcher to detect manual navigation to storage space",
         "notes" : [
           "* Ensures exactly two native macOS spaces exist on the main screen",
           "* Automatically assigns all existing windows to virtual space 1",
@@ -45,20 +50,20 @@
           "* The VirtualSpaces object",
           ""
         ],
-        "desc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
-        "parameters" : [
-          "* None",
-          ""
-        ]
+        "def" : "VirtualSpaces:init()",
+        "name" : "init"
       },
       {
-        "doc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.\n\nParameters:\n* virtualSpace - The virtual workspace number to switch to (must be >= 1)\n\nReturns:\n* None\n\nNotes:\n* Saves currently focused window for the current workspace\n* Moves all visible windows to storage space\n* Retrieves windows belonging to target workspace from storage\n* Moves them to active space and restores focus to last focused window\n* Does nothing if already on the target virtual space",
+        "parameters" : [
+          "* virtualSpace - The virtual workspace number to switch to (must be >= 1)",
+          ""
+        ],
         "stripped_doc" : [
           "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
           ""
         ],
-        "name" : "switchToVirtualSpace",
-        "def" : "VirtualSpaces:switchToVirtualSpace(virtualSpace)",
+        "desc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
+        "doc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.\n\nParameters:\n* virtualSpace - The virtual workspace number to switch to (must be >= 1)\n\nReturns:\n* None\n\nNotes:\n* Saves currently focused window for the current workspace\n* Moves all visible windows to storage space\n* Retrieves windows belonging to target workspace from storage\n* Moves them to active space and restores focus to last focused window\n* Does nothing if already on the target virtual space",
         "notes" : [
           "* Saves currently focused window for the current workspace",
           "* Moves all visible windows to storage space",
@@ -72,20 +77,21 @@
           "* None",
           ""
         ],
-        "desc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
-        "parameters" : [
-          "* virtualSpace - The virtual workspace number to switch to (must be >= 1)",
-          ""
-        ]
+        "def" : "VirtualSpaces:switchToVirtualSpace(virtualSpace)",
+        "name" : "switchToVirtualSpace"
       },
       {
-        "doc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.\n\nParameters:\n* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.\n* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.\n\nReturns:\n* None\n\nNotes:\n* If target is the current workspace, moves window to active space (visible)\n* If target is a different workspace, moves window to storage space (hidden)\n* Updates workspace mapping and restores focus appropriately\n* When window parameter is nil, this is NOT an error condition - it intentionally uses the focused window as a convenience feature",
+        "parameters" : [
+          "* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.",
+          "* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.",
+          ""
+        ],
         "stripped_doc" : [
           "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
           ""
         ],
-        "name" : "moveWindowToVirtualSpace",
-        "def" : "VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)",
+        "desc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
+        "doc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.\n\nParameters:\n* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.\n* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.\n\nReturns:\n* None\n\nNotes:\n* If target is the current workspace, moves window to active space (visible)\n* If target is a different workspace, moves window to storage space (hidden)\n* Updates workspace mapping and restores focus appropriately\n* When window parameter is nil, this is NOT an error condition - it intentionally uses the focused window as a convenience feature",
         "notes" : [
           "* If target is the current workspace, moves window to active space (visible)",
           "* If target is a different workspace, moves window to storage space (hidden)",
@@ -98,21 +104,20 @@
           "* None",
           ""
         ],
-        "desc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
-        "parameters" : [
-          "* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.",
-          "* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.",
-          ""
-        ]
+        "def" : "VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)",
+        "name" : "moveWindowToVirtualSpace"
       },
       {
-        "doc" : "Sets the instrumentation log level to control logging behavior.\n\nParameters:\n* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'\n\nReturns:\n* None\n\nNotes:\n* Can be called at any time to change logging verbosity\n* Default log level is 'warning' (no instrumentation)\n* 'info' level: logs operation names only\n* 'debug' level: logs both operation names and timing metrics",
+        "parameters" : [
+          "* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'",
+          ""
+        ],
         "stripped_doc" : [
           "Sets the instrumentation log level to control logging behavior.",
           ""
         ],
-        "name" : "instrument",
-        "def" : "VirtualSpaces:instrument(logLevel)",
+        "desc" : "Sets the instrumentation log level to control logging behavior.",
+        "doc" : "Sets the instrumentation log level to control logging behavior.\n\nParameters:\n* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'\n\nReturns:\n* None\n\nNotes:\n* Can be called at any time to change logging verbosity\n* Default log level is 'warning' (no instrumentation)\n* 'info' level: logs operation names only\n* 'debug' level: logs both operation names and timing metrics",
         "notes" : [
           "* Can be called at any time to change logging verbosity",
           "* Default log level is 'warning' (no instrumentation)",
@@ -125,11 +130,8 @@
           "* None",
           ""
         ],
-        "desc" : "Sets the instrumentation log level to control logging behavior.",
-        "parameters" : [
-          "* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'",
-          ""
-        ]
+        "def" : "VirtualSpaces:instrument(logLevel)",
+        "name" : "instrument"
       }
     ],
     "Command" : [
@@ -137,13 +139,16 @@
     ],
     "items" : [
       {
-        "doc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.\n\nParameters:\n* None\n\nReturns:\n* The VirtualSpaces object\n\nNotes:\n* Ensures exactly two native macOS spaces exist on the main screen\n* Automatically assigns all existing windows to virtual space 1\n* Sets up window filters to track window creation and destruction\n* Implements space watcher to detect manual navigation to storage space",
+        "parameters" : [
+          "* None",
+          ""
+        ],
         "stripped_doc" : [
           "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
           ""
         ],
-        "name" : "init",
-        "def" : "VirtualSpaces:init()",
+        "desc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
+        "doc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.\n\nParameters:\n* None\n\nReturns:\n* The VirtualSpaces object\n\nNotes:\n* Ensures exactly two native macOS spaces exist on the main screen\n* Automatically assigns all existing windows to virtual space 1\n* Sets up window filters to track window creation and destruction\n* Implements space watcher to detect manual navigation to storage space",
         "notes" : [
           "* Ensures exactly two native macOS spaces exist on the main screen",
           "* Automatically assigns all existing windows to virtual space 1",
@@ -156,20 +161,20 @@
           "* The VirtualSpaces object",
           ""
         ],
-        "desc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
-        "parameters" : [
-          "* None",
-          ""
-        ]
+        "def" : "VirtualSpaces:init()",
+        "name" : "init"
       },
       {
-        "doc" : "Sets the instrumentation log level to control logging behavior.\n\nParameters:\n* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'\n\nReturns:\n* None\n\nNotes:\n* Can be called at any time to change logging verbosity\n* Default log level is 'warning' (no instrumentation)\n* 'info' level: logs operation names only\n* 'debug' level: logs both operation names and timing metrics",
+        "parameters" : [
+          "* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'",
+          ""
+        ],
         "stripped_doc" : [
           "Sets the instrumentation log level to control logging behavior.",
           ""
         ],
-        "name" : "instrument",
-        "def" : "VirtualSpaces:instrument(logLevel)",
+        "desc" : "Sets the instrumentation log level to control logging behavior.",
+        "doc" : "Sets the instrumentation log level to control logging behavior.\n\nParameters:\n* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'\n\nReturns:\n* None\n\nNotes:\n* Can be called at any time to change logging verbosity\n* Default log level is 'warning' (no instrumentation)\n* 'info' level: logs operation names only\n* 'debug' level: logs both operation names and timing metrics",
         "notes" : [
           "* Can be called at any time to change logging verbosity",
           "* Default log level is 'warning' (no instrumentation)",
@@ -182,20 +187,21 @@
           "* None",
           ""
         ],
-        "desc" : "Sets the instrumentation log level to control logging behavior.",
-        "parameters" : [
-          "* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'",
-          ""
-        ]
+        "def" : "VirtualSpaces:instrument(logLevel)",
+        "name" : "instrument"
       },
       {
-        "doc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.\n\nParameters:\n* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.\n* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.\n\nReturns:\n* None\n\nNotes:\n* If target is the current workspace, moves window to active space (visible)\n* If target is a different workspace, moves window to storage space (hidden)\n* Updates workspace mapping and restores focus appropriately\n* When window parameter is nil, this is NOT an error condition - it intentionally uses the focused window as a convenience feature",
+        "parameters" : [
+          "* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.",
+          "* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.",
+          ""
+        ],
         "stripped_doc" : [
           "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
           ""
         ],
-        "name" : "moveWindowToVirtualSpace",
-        "def" : "VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)",
+        "desc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
+        "doc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.\n\nParameters:\n* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.\n* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.\n\nReturns:\n* None\n\nNotes:\n* If target is the current workspace, moves window to active space (visible)\n* If target is a different workspace, moves window to storage space (hidden)\n* Updates workspace mapping and restores focus appropriately\n* When window parameter is nil, this is NOT an error condition - it intentionally uses the focused window as a convenience feature",
         "notes" : [
           "* If target is the current workspace, moves window to active space (visible)",
           "* If target is a different workspace, moves window to storage space (hidden)",
@@ -208,21 +214,20 @@
           "* None",
           ""
         ],
-        "desc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
-        "parameters" : [
-          "* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.",
-          "* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.",
-          ""
-        ]
+        "def" : "VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)",
+        "name" : "moveWindowToVirtualSpace"
       },
       {
-        "doc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.\n\nParameters:\n* virtualSpace - The virtual workspace number to switch to (must be >= 1)\n\nReturns:\n* None\n\nNotes:\n* Saves currently focused window for the current workspace\n* Moves all visible windows to storage space\n* Retrieves windows belonging to target workspace from storage\n* Moves them to active space and restores focus to last focused window\n* Does nothing if already on the target virtual space",
+        "parameters" : [
+          "* virtualSpace - The virtual workspace number to switch to (must be >= 1)",
+          ""
+        ],
         "stripped_doc" : [
           "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
           ""
         ],
-        "name" : "switchToVirtualSpace",
-        "def" : "VirtualSpaces:switchToVirtualSpace(virtualSpace)",
+        "desc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
+        "doc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.\n\nParameters:\n* virtualSpace - The virtual workspace number to switch to (must be >= 1)\n\nReturns:\n* None\n\nNotes:\n* Saves currently focused window for the current workspace\n* Moves all visible windows to storage space\n* Retrieves windows belonging to target workspace from storage\n* Moves them to active space and restores focus to last focused window\n* Does nothing if already on the target virtual space",
         "notes" : [
           "* Saves currently focused window for the current workspace",
           "* Moves all visible windows to storage space",
@@ -236,16 +241,11 @@
           "* None",
           ""
         ],
-        "desc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
-        "parameters" : [
-          "* virtualSpace - The virtual workspace number to switch to (must be >= 1)",
-          ""
-        ]
+        "def" : "VirtualSpaces:switchToVirtualSpace(virtualSpace)",
+        "name" : "switchToVirtualSpace"
       }
     ],
-    "Field" : [
-
-    ],
+    "doc" : "VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.\n\nIt creates multiple logical workspaces on a single macOS desktop by managing window visibility across two macOS spaces: one active and one for storage. Its goal is to provide a instant switching experience between workspaces without the overhead of managing multiple physical desktops and superfulous macOS transition effects.\n\n--- Download: [VirtualSpaces.spoon.zip](https:\/\/github.com\/brennovich\/VirtualSpaces.spoon\/releases\/latest\/download\/VirtualSpaces.spoon.zip)",
     "name" : "VirtualSpaces"
   }
 ]
