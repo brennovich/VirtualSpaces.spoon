@@ -62,26 +62,17 @@ function obj:init()
 	self.windowFilterOther:setCurrentSpace(true)
 
 	for _, win in ipairs(hs.window.allWindows()) do
-		if win:isStandard() then
-			self.model:registerWindowObject(win)
-			self:_assignWindowAndTabGroupToVirtualSpace(win, 1)
-			self.windowCache:add(win:id(), win)
-		end
+		self:_assignWindowToVirtualSpace(win, 1)
+		self.windowCache:add(win:id(), win)
 	end
 
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
-		self.model:registerWindowObject(window)
-		self:_assignWindowAndTabGroupToVirtualSpace(window, self.model:getCurrentVirtualSpace())
+		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
 		self.windowCache:add(window:id(), window)
 	end)
 	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
-		local windowId = window:id()
-		if not self.model._windows[windowId] then
-			self.model:registerWindowObject(window)
-			local currentVS = self.model:getCurrentVirtualSpace()
-			self:_assignWindowAndTabGroupToVirtualSpace(window, currentVS)
-			self.windowCache:add(windowId, window)
-		end
+		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
+		self.windowCache:add(window:id(), window)
 	end)
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
 		local windowId = window:id()
@@ -199,7 +190,7 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 			if not window then return end
 		end
 
-		self:_assignWindowAndTabGroupToVirtualSpace(window, virtualSpace)
+		self:_assignWindowToVirtualSpace(window, virtualSpace)
 
 		local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
 			and self.nativeSpaceManager:getActiveSpace()
@@ -236,29 +227,7 @@ function obj:_assignWindowToVirtualSpace(window, virtualSpace)
 	if not self:_isValidWindowForVirtualSpace(window) then return end
 
 	return self._telemetry:span("assignWindowToVirtualSpace", function()
-		local winId = window:id()
-		self.model:assignWindowToVirtualSpace(winId, virtualSpace)
-		self.model:saveFocusedWindowInVirtualSpace(virtualSpace, winId)
-	end)
-end
-
-function obj:_assignWindowAndTabGroupToVirtualSpace(window, virtualSpace)
-	if not self:_isValidWindowForVirtualSpace(window) then return end
-
-	return self._telemetry:span("assignWindowAndTabGroupToVirtualSpace", function()
-		local windowId = window:id()
-		local tabGroup = self.model:getTabGroupForWindow(windowId)
-
-		if tabGroup then
-			self._telemetry:span(string.format("assignTabGroup(%d windows)", #tabGroup), function()
-				for _, tabWindowId in ipairs(tabGroup) do
-					self.model:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
-				end
-				self.model:saveFocusedWindowInVirtualSpace(virtualSpace, windowId)
-			end)
-		else
-			self:_assignWindowToVirtualSpace(window, virtualSpace)
-		end
+		self.model:assignWindowToSpace(window, virtualSpace)
 	end)
 end
 

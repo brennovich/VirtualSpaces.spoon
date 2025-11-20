@@ -417,4 +417,118 @@ function TestSpacesModel:testTerminalAppTabsWithSlightlyDifferentYCoordinatesAre
 	lu.assertTrue(table.contains(tabGroup1, 3459), "Tab group should contain window 3459")
 end
 
+function TestSpacesModel:testAssignWindowAndTabGroupToVirtualSpaceWithTabbedWindow()
+	local model = SpacesModel.new()
+
+	local window1 = {
+		id = function() return 100 end,
+		tabCount = function() return 2 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "Safari" end} end
+	}
+
+	local window2 = {
+		id = function() return 200 end,
+		tabCount = function() return 2 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "Safari" end} end
+	}
+
+	model:registerWindowObject(window1)
+	model:registerWindowObject(window2)
+
+	model:assignWindowAndTabGroupToVirtualSpace(100, 2)
+
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 2)
+	lu.assertEquals(model:getVirtualSpaceForWindow(200), 2)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(2), 100)
+end
+
+function TestSpacesModel:testAssignWindowAndTabGroupToVirtualSpaceWithSingleWindow()
+	local model = SpacesModel.new()
+
+	local window = {
+		id = function() return 100 end,
+		tabCount = function() return 1 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "Safari" end} end
+	}
+
+	model:registerWindowObject(window)
+
+	model:assignWindowAndTabGroupToVirtualSpace(100, 1)
+
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 100)
+end
+
+function TestSpacesModel:testAssignWindowToSpaceWithSingleWindow()
+	local model = SpacesModel.new()
+
+	local window = {
+		id = function() return 100 end,
+		tabCount = function() return 1 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "Safari" end} end
+	}
+
+	model:assignWindowToSpace(window, 1)
+
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 100)
+end
+
+function TestSpacesModel:testAssignWindowToSpaceWithTabbedWindows()
+	local model = SpacesModel.new()
+
+	local window1 = {
+		id = function() return 100 end,
+		tabCount = function() return 2 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "Safari" end} end
+	}
+
+	local window2 = {
+		id = function() return 200 end,
+		tabCount = function() return 2 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "Safari" end} end
+	}
+
+	model:assignWindowToSpace(window1, 1)
+	model:assignWindowToSpace(window2, 2)
+
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 2)
+	lu.assertEquals(model:getVirtualSpaceForWindow(200), 2)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(2), 200)
+end
+
+function TestSpacesModel:testAssignWindowToSpaceIsIdempotent()
+	local model = SpacesModel.new()
+	local registerCount = 0
+
+	local originalRegister = model.registerWindowObject
+	model.registerWindowObject = function(self, window)
+		registerCount = registerCount + 1
+		return originalRegister(self, window)
+	end
+
+	local window = {
+		id = function() return 100 end,
+		tabCount = function() return 1 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "Safari" end} end
+	}
+
+	model:assignWindowToSpace(window, 1)
+	lu.assertEquals(registerCount, 1)
+
+	model:assignWindowToSpace(window, 1)
+	lu.assertEquals(registerCount, 1)
+
+	model:assignWindowToSpace(window, 2)
+	lu.assertEquals(registerCount, 1)
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 2)
+end
+
 return TestSpacesModel

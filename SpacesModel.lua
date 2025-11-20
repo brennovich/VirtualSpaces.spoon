@@ -31,6 +31,19 @@ function SpacesModel:getFocusedWindowForVirtualSpace(virtualSpace)
 	return self._focusedWindows[virtualSpace]
 end
 
+function SpacesModel:assignWindowToSpace(hsWindow, virtualSpace)
+	local windowData = Window.new(hsWindow)
+	if not windowData then
+		return
+	end
+
+	if not self:isWindowRegistered(windowData.id) then
+		self:registerWindowObject(hsWindow)
+	end
+
+	self:assignWindowAndTabGroupToVirtualSpace(windowData.id, virtualSpace)
+end
+
 function SpacesModel:registerWindowObject(hsWindow)
 	local windowData = Window.new(hsWindow)
 	if not windowData then
@@ -65,6 +78,25 @@ function SpacesModel:unregisterWindowObject(windowId)
 			self._tabGroups[groupId] = nil
 		end
 	end
+end
+
+-- Assign a window and its tab group to a virtual space
+function SpacesModel:assignWindowAndTabGroupToVirtualSpace(windowId, virtualSpace)
+	if not windowId or not virtualSpace then
+		return
+	end
+
+	local tabGroup = self:getTabGroupForWindow(windowId)
+
+	if tabGroup then
+		for _, tabWindowId in ipairs(tabGroup) do
+			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
+		end
+	else
+		self:assignWindowToVirtualSpace(windowId, virtualSpace)
+	end
+
+	self:saveFocusedWindowInVirtualSpace(virtualSpace, windowId)
 end
 
 -- Assign a window to a virtual space
@@ -168,6 +200,10 @@ end
 
 function SpacesModel:_unregisterWindow(windowId)
 	self._windows[windowId] = nil
+end
+
+function SpacesModel:isWindowRegistered(windowId)
+	return self._windows[windowId] ~= nil
 end
 
 function SpacesModel:_findRegisteredWindowsByFrameAndApp(frame, appName)

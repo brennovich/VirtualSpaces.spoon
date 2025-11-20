@@ -12,7 +12,10 @@ function TestMoveWindowToVirtualSpace:setUp()
 		isStandard = function() return true end,
 		isFullScreen = function() return false end,
 		isMinimized = function() return false end,
-		focus = function() end
+		focus = function() end,
+		tabCount = function() return 1 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "TestApp" end} end
 	}
 
 	_G.hs = {
@@ -60,14 +63,20 @@ function TestMoveWindowToVirtualSpace:setUp()
 						id = function() return 100 end,
 						isStandard = function() return true end,
 						isMinimized = function() return false end,
-						focus = function() end
+						focus = function() end,
+						tabCount = function() return 1 end,
+						frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+						application = function() return {name = function() return "TestApp" end} end
 					}
 				elseif id == 200 then
 					return {
 						id = function() return 200 end,
 						isStandard = function() return true end,
 						isMinimized = function() return false end,
-						focus = function() end
+						focus = function() end,
+						tabCount = function() return 1 end,
+						frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+						application = function() return {name = function() return "TestApp" end} end
 					}
 				end
 				return nil
@@ -110,7 +119,10 @@ function TestMoveWindowToVirtualSpace:testMovesExplicitWindowWhenProvided()
 		isStandard = function() return true end,
 		isFullScreen = function() return false end,
 		isMinimized = function() return false end,
-		focus = function() end
+		focus = function() end,
+		tabCount = function() return 1 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return "TestApp" end} end
 	}
 
 	self.obj:switchToVirtualSpace(1)
