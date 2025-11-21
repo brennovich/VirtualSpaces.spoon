@@ -18,10 +18,6 @@ function Window.new(hsWindow)
 	}
 end
 
-function Window.makeKey(frame, appName)
-	return string.format("%s|%.1f,%.1f,%.1f,%.1f", appName, frame.x, frame.y, frame.w, frame.h)
-end
-
 function Window.framesEqual(frame1, frame2)
 	return frame1.x == frame2.x
 		and math.abs(frame1.y - frame2.y) <= Window.Y_TOLERANCE

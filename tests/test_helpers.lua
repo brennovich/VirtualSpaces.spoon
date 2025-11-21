@@ -11,17 +11,6 @@ function table.contains(tbl, element)
 	return false
 end
 
-function TestHelpers.createMockWindow(id, options)
-	options = options or {}
-	return {
-		id = function() return id end,
-		isStandard = function() return options.isStandard ~= false end,
-		isFullScreen = function() return options.isFullScreen or false end,
-		isMinimized = function() return options.isMinimized or false end,
-		focus = options.focus or function() end
-	}
-end
-
 function TestHelpers.createBasicDeps(overrides)
 	overrides = overrides or {}
 	return {

@@ -46,7 +46,7 @@ function SpacesModel:assignWindowToSpace(window, virtualSpace)
 		return
 	end
 
-	if not self._windows[window.id] ~= nil then
+	if self._windows[window.id] == nil then
 		self._windows[window.id] = window
 
 		if window.tabCount and window.tabCount > 1 then

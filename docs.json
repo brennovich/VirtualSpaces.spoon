@@ -15,11 +15,11 @@
     "stripped_doc" : [
 
     ],
-    "desc" : "VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.",
+    "type" : "Module",
     "Deprecated" : [
 
     ],
-    "type" : "Module",
+    "desc" : "VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.",
     "Constructor" : [
 
     ],
@@ -33,15 +33,15 @@
     "items" : [
       {
         "doc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.\n\nParameters:\n* None\n\nReturns:\n* The VirtualSpaces object\n\nNotes:\n* Ensures exactly two native macOS spaces exist on the main screen\n* Automatically assigns all existing windows to virtual space 1\n* Sets up window filters to track window creation and destruction\n* Implements space watcher to detect manual navigation to storage space",
-        "stripped_doc" : [
-          "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
-          ""
-        ],
         "parameters" : [
           "* None",
           ""
         ],
         "desc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
+        "stripped_doc" : [
+          "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
+          ""
+        ],
         "notes" : [
           "* Ensures exactly two native macOS spaces exist on the main screen",
           "* Automatically assigns all existing windows to virtual space 1",
@@ -59,15 +59,15 @@
       },
       {
         "doc" : "Sets the instrumentation log level to control logging behavior.\n\nParameters:\n* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'\n\nReturns:\n* None\n\nNotes:\n* Can be called at any time to change logging verbosity\n* Default log level is 'warning' (no instrumentation)\n* 'info' level: logs operation names only\n* 'debug' level: logs both operation names and timing metrics",
-        "stripped_doc" : [
-          "Sets the instrumentation log level to control logging behavior.",
-          ""
-        ],
         "parameters" : [
           "* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'",
           ""
         ],
         "desc" : "Sets the instrumentation log level to control logging behavior.",
+        "stripped_doc" : [
+          "Sets the instrumentation log level to control logging behavior.",
+          ""
+        ],
         "notes" : [
           "* Can be called at any time to change logging verbosity",
           "* Default log level is 'warning' (no instrumentation)",
@@ -85,16 +85,16 @@
       },
       {
         "doc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.\n\nParameters:\n* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.\n* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.\n\nReturns:\n* None\n\nNotes:\n* If target is the current workspace, moves window to active space (visible)\n* If target is a different workspace, moves window to storage space (hidden)\n* Updates workspace mapping and restores focus appropriately\n* When window parameter is nil, this is NOT an error condition - it intentionally uses the focused window as a convenience feature",
-        "stripped_doc" : [
-          "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
-          ""
-        ],
         "parameters" : [
           "* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.",
           "* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.",
           ""
         ],
         "desc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
+        "stripped_doc" : [
+          "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
+          ""
+        ],
         "notes" : [
           "* If target is the current workspace, moves window to active space (visible)",
           "* If target is a different workspace, moves window to storage space (hidden)",
@@ -112,15 +112,15 @@
       },
       {
         "doc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.\n\nParameters:\n* virtualSpace - The virtual workspace number to switch to (must be >= 1)\n\nReturns:\n* None\n\nNotes:\n* Saves currently focused window for the current workspace\n* Moves all visible windows to storage space\n* Retrieves windows belonging to target workspace from storage\n* Moves them to active space and restores focus to last focused window\n* Does nothing if already on the target virtual space",
-        "stripped_doc" : [
-          "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
-          ""
-        ],
         "parameters" : [
           "* virtualSpace - The virtual workspace number to switch to (must be >= 1)",
           ""
         ],
         "desc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
+        "stripped_doc" : [
+          "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
+          ""
+        ],
         "notes" : [
           "* Saves currently focused window for the current workspace",
           "* Moves all visible windows to storage space",
@@ -141,15 +141,15 @@
     "Method" : [
       {
         "doc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.\n\nParameters:\n* None\n\nReturns:\n* The VirtualSpaces object\n\nNotes:\n* Ensures exactly two native macOS spaces exist on the main screen\n* Automatically assigns all existing windows to virtual space 1\n* Sets up window filters to track window creation and destruction\n* Implements space watcher to detect manual navigation to storage space",
-        "stripped_doc" : [
-          "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
-          ""
-        ],
         "parameters" : [
           "* None",
           ""
         ],
         "desc" : "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
+        "stripped_doc" : [
+          "Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.",
+          ""
+        ],
         "notes" : [
           "* Ensures exactly two native macOS spaces exist on the main screen",
           "* Automatically assigns all existing windows to virtual space 1",
@@ -167,15 +167,15 @@
       },
       {
         "doc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.\n\nParameters:\n* virtualSpace - The virtual workspace number to switch to (must be >= 1)\n\nReturns:\n* None\n\nNotes:\n* Saves currently focused window for the current workspace\n* Moves all visible windows to storage space\n* Retrieves windows belonging to target workspace from storage\n* Moves them to active space and restores focus to last focused window\n* Does nothing if already on the target virtual space",
-        "stripped_doc" : [
-          "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
-          ""
-        ],
         "parameters" : [
           "* virtualSpace - The virtual workspace number to switch to (must be >= 1)",
           ""
         ],
         "desc" : "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
+        "stripped_doc" : [
+          "Switches to the specified virtual workspace. Moves windows between active and storage spaces to simulate independent desktops.",
+          ""
+        ],
         "notes" : [
           "* Saves currently focused window for the current workspace",
           "* Moves all visible windows to storage space",
@@ -194,16 +194,16 @@
       },
       {
         "doc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.\n\nParameters:\n* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.\n* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.\n\nReturns:\n* None\n\nNotes:\n* If target is the current workspace, moves window to active space (visible)\n* If target is a different workspace, moves window to storage space (hidden)\n* Updates workspace mapping and restores focus appropriately\n* When window parameter is nil, this is NOT an error condition - it intentionally uses the focused window as a convenience feature",
-        "stripped_doc" : [
-          "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
-          ""
-        ],
         "parameters" : [
           "* window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.",
           "* virtualSpace - Target virtual workspace number (must be >= 1). If invalid, the function returns without doing anything.",
           ""
         ],
         "desc" : "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
+        "stripped_doc" : [
+          "Assigns a window to a different virtual workspace and moves it to the appropriate native space.",
+          ""
+        ],
         "notes" : [
           "* If target is the current workspace, moves window to active space (visible)",
           "* If target is a different workspace, moves window to storage space (hidden)",
@@ -221,15 +221,15 @@
       },
       {
         "doc" : "Sets the instrumentation log level to control logging behavior.\n\nParameters:\n* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'\n\nReturns:\n* None\n\nNotes:\n* Can be called at any time to change logging verbosity\n* Default log level is 'warning' (no instrumentation)\n* 'info' level: logs operation names only\n* 'debug' level: logs both operation names and timing metrics",
-        "stripped_doc" : [
-          "Sets the instrumentation log level to control logging behavior.",
-          ""
-        ],
         "parameters" : [
           "* logLevel - Log level string. Valid values: 'nothing', 'error', 'warning', 'info', 'debug', 'verbose'",
           ""
         ],
         "desc" : "Sets the instrumentation log level to control logging behavior.",
+        "stripped_doc" : [
+          "Sets the instrumentation log level to control logging behavior.",
+          ""
+        ],
         "notes" : [
           "* Can be called at any time to change logging verbosity",
           "* Default log level is 'warning' (no instrumentation)",

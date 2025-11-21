@@ -65,16 +65,13 @@ function obj:init()
 	-- On first load, assign all existing windows to virtual space 1
 	for _, win in ipairs(hs.window.allWindows()) do
 		self:_assignWindowToVirtualSpace(win, 1)
-		self.windowCache:add(win)
 	end
 
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
-		self.windowCache:add(window)
 	end)
 	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
-		self.windowCache:add(window)
 	end)
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
 		local windowId = window:id()
@@ -229,6 +226,7 @@ function obj:_assignWindowToVirtualSpace(window, virtualSpace)
 
 	return self._telemetry:span("assignWindowToVirtualSpace", function()
 		self.model:assignWindowToSpace(Window.new(window), virtualSpace)
+		self.windowCache:add(window)
 	end)
 end
 
