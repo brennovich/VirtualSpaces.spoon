@@ -61,6 +61,7 @@ function obj:init()
 	self.windowFilterOther = hs.window.filter.new()
 	self.windowFilterOther:setCurrentSpace(true)
 
+	-- On first load, assign all existing windows to virtual space 1
 	for _, win in ipairs(hs.window.allWindows()) do
 		self:_assignWindowToVirtualSpace(win, 1)
 		self.windowCache:add(win)
@@ -78,8 +79,7 @@ function obj:init()
 		local windowId = window:id()
 		local tabSiblings = self.model:getTabSiblingsBeforeDestruction(windowId)
 
-		self.model:unregisterWindowObject(windowId)
-		self.model:removeWindow(windowId)
+		self.model:unregisterWindowById(windowId)
 		self.windowCache:remove(windowId)
 
 		if tabSiblings and #tabSiblings > 0 then

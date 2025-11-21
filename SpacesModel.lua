@@ -31,44 +31,54 @@ function SpacesModel:getFocusedWindowForVirtualSpace(virtualSpace)
 	return self._focusedWindows[virtualSpace]
 end
 
+-- Get the virtual space assigned to a window
+function SpacesModel:getVirtualSpaceForWindow(windowId)
+	return self._windowVirtualSpaceMap[windowId]
+end
+
+-- Get all windows assigned to a virtual space
+function SpacesModel:getWindowsInVirtualSpace(virtualSpace)
+	return self._virtualSpaceWindowsMap[virtualSpace] or {}
+end
+
 function SpacesModel:assignWindowToSpace(hsWindow, virtualSpace)
 	local windowData = Window.new(hsWindow)
 	if not windowData then
 		return
 	end
 
-	if not self:isWindowRegistered(windowData.id) then
-		self:registerWindowObject(hsWindow)
-	end
+	if not self._windows[windowData.id] ~= nil then
+		self._windows[windowData.id] = windowData
 
-	self:assignWindowAndTabGroupToVirtualSpace(windowData.id, virtualSpace)
-end
+		if windowData.tabCount and windowData.tabCount > 1 then
+			local existingGroupId = self:_findGroupByFrameAndApp(windowData.frame, windowData.appName)
 
-function SpacesModel:registerWindowObject(hsWindow)
-	local windowData = Window.new(hsWindow)
-	if not windowData then
-		return
-	end
-
-	self:_registerWindow(windowData)
-
-	if windowData.tabCount and windowData.tabCount > 1 then
-		local existingGroupId = self:_findGroupByFrameAndApp(windowData.frame, windowData.appName)
-
-		if existingGroupId then
-			self:_addWindowToTabGroup(windowData.id, existingGroupId)
-		else
-			local groupId = self:_createTabGroup(windowData)
-			local registeredWindows = self:_findRegisteredWindowsByFrameAndApp(windowData.frame, windowData.appName)
-			for _, regWindowId in ipairs(registeredWindows) do
-				self:_addWindowToTabGroup(regWindowId, groupId)
+			if existingGroupId then
+				self:_addWindowToTabGroup(windowData.id, existingGroupId)
+			else
+				local groupId = self:_createTabGroup(windowData)
+				local registeredWindows = self:_findRegisteredWindowsByFrameAndApp(windowData.frame, windowData.appName)
+				for _, regWindowId in ipairs(registeredWindows) do
+					self:_addWindowToTabGroup(regWindowId, groupId)
+				end
 			end
 		end
 	end
+
+	local tabGroup = self:getTabGroupForWindow(windowData.id)
+	if tabGroup then
+		for _, tabWindowId in ipairs(tabGroup) do
+			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
+		end
+	else
+		self:assignWindowToVirtualSpace(windowData.id, virtualSpace)
+	end
+
+	self:saveFocusedWindowInVirtualSpace(virtualSpace, windowData.id)
 end
 
-function SpacesModel:unregisterWindowObject(windowId)
-	self:_unregisterWindow(windowId)
+function SpacesModel:unregisterWindowById(windowId)
+	self._windows[windowId] = nil
 
 	local groupId = self._windowToTabGroup[windowId]
 	if groupId then
@@ -78,25 +88,18 @@ function SpacesModel:unregisterWindowObject(windowId)
 			self._tabGroups[groupId] = nil
 		end
 	end
-end
 
--- Assign a window and its tab group to a virtual space
-function SpacesModel:assignWindowAndTabGroupToVirtualSpace(windowId, virtualSpace)
-	if not windowId or not virtualSpace then
-		return
-	end
+	local virtualSpace = self._windowVirtualSpaceMap[windowId]
 
-	local tabGroup = self:getTabGroupForWindow(windowId)
+	if virtualSpace then
+		self:_removeWindowFromList(virtualSpace, windowId)
 
-	if tabGroup then
-		for _, tabWindowId in ipairs(tabGroup) do
-			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
+		if self._focusedWindows[virtualSpace] == windowId then
+			self._focusedWindows[virtualSpace] = nil
 		end
-	else
-		self:assignWindowToVirtualSpace(windowId, virtualSpace)
 	end
 
-	self:saveFocusedWindowInVirtualSpace(virtualSpace, windowId)
+	self._windowVirtualSpaceMap[windowId] = nil
 end
 
 -- Assign a window to a virtual space
@@ -121,31 +124,6 @@ function SpacesModel:assignWindowToVirtualSpace(windowId, virtualSpace)
 	table.insert(self._virtualSpaceWindowsMap[virtualSpace], windowId)
 
 	self._windowVirtualSpaceMap[windowId] = virtualSpace
-end
-
--- Remove a window from its assigned virtual space
-function SpacesModel:removeWindow(windowId)
-	local virtualSpace = self._windowVirtualSpaceMap[windowId]
-
-	if virtualSpace then
-		self:_removeWindowFromList(virtualSpace, windowId)
-
-		if self._focusedWindows[virtualSpace] == windowId then
-			self._focusedWindows[virtualSpace] = nil
-		end
-	end
-
-	self._windowVirtualSpaceMap[windowId] = nil
-end
-
--- Get the virtual space assigned to a window
-function SpacesModel:getVirtualSpaceForWindow(windowId)
-	return self._windowVirtualSpaceMap[windowId]
-end
-
--- Get all windows assigned to a virtual space
-function SpacesModel:getWindowsInVirtualSpace(virtualSpace)
-	return self._virtualSpaceWindowsMap[virtualSpace] or {}
 end
 
 -- Categorize windows based on their virtual space assignments for transition
@@ -192,18 +170,6 @@ function SpacesModel:_removeWindowFromList(virtualSpace, windowId)
 			return
 		end
 	end
-end
-
-function SpacesModel:_registerWindow(windowData)
-	self._windows[windowData.id] = windowData
-end
-
-function SpacesModel:_unregisterWindow(windowId)
-	self._windows[windowId] = nil
-end
-
-function SpacesModel:isWindowRegistered(windowId)
-	return self._windows[windowId] ~= nil
 end
 
 function SpacesModel:_findRegisteredWindowsByFrameAndApp(frame, appName)
