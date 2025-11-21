@@ -1,3 +1,5 @@
+local lu = require('luaunit')
+
 local TestHelpers = {}
 
 function table.contains(tbl, element)
@@ -58,6 +60,19 @@ function TestHelpers.withHsGlobal(hsConfig, fn)
 		error(result)
 	end
 	return result
+end
+
+function TestHelpers.createWindow(id, tabCount, frame, appName)
+	return {
+		id = id,
+		tabCount = tabCount or 1,
+		frame = frame or {x = 0, y = 0, w = 800, h = 600},
+		appName = appName or "TestApp"
+	}
+end
+
+function TestHelpers.createSimpleWindow(id)
+	return TestHelpers.createWindow(id, 1, {x = 0, y = 0, w = 800, h = 600}, "TestApp")
 end
 
 return TestHelpers

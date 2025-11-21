@@ -9,6 +9,7 @@
 local spoonPath = hs.spoons.scriptPath()
 package.path = package.path .. ";" .. spoonPath .. "?.lua"
 
+local Window = require("Window")
 local WindowsSort = require("WindowsSort")
 local SpacesModel = require("SpacesModel")
 local NativeSpaceManager = require("NativeSpaceManager")
@@ -227,7 +228,7 @@ function obj:_assignWindowToVirtualSpace(window, virtualSpace)
 	if not self:_isValidWindowForVirtualSpace(window) then return end
 
 	return self._telemetry:span("assignWindowToVirtualSpace", function()
-		self.model:assignWindowToSpace(window, virtualSpace)
+		self.model:assignWindowToSpace(Window.new(window), virtualSpace)
 	end)
 end
 

@@ -41,23 +41,22 @@ function SpacesModel:getWindowsInVirtualSpace(virtualSpace)
 	return self._virtualSpaceWindowsMap[virtualSpace] or {}
 end
 
-function SpacesModel:assignWindowToSpace(hsWindow, virtualSpace)
-	local windowData = Window.new(hsWindow)
-	if not windowData then
+function SpacesModel:assignWindowToSpace(window, virtualSpace)
+	if not window then
 		return
 	end
 
-	if not self._windows[windowData.id] ~= nil then
-		self._windows[windowData.id] = windowData
+	if not self._windows[window.id] ~= nil then
+		self._windows[window.id] = window
 
-		if windowData.tabCount and windowData.tabCount > 1 then
-			local existingGroupId = self:_findGroupByFrameAndApp(windowData.frame, windowData.appName)
+		if window.tabCount and window.tabCount > 1 then
+			local existingGroupId = self:_findGroupByFrameAndApp(window.frame, window.appName)
 
 			if existingGroupId then
-				self:_addWindowToTabGroup(windowData.id, existingGroupId)
+				self:_addWindowToTabGroup(window.id, existingGroupId)
 			else
-				local groupId = self:_createTabGroup(windowData)
-				local registeredWindows = self:_findRegisteredWindowsByFrameAndApp(windowData.frame, windowData.appName)
+				local groupId = self:_createTabGroup(window)
+				local registeredWindows = self:_findRegisteredWindowsByFrameAndApp(window.frame, window.appName)
 				for _, regWindowId in ipairs(registeredWindows) do
 					self:_addWindowToTabGroup(regWindowId, groupId)
 				end
@@ -65,16 +64,16 @@ function SpacesModel:assignWindowToSpace(hsWindow, virtualSpace)
 		end
 	end
 
-	local tabGroup = self:getTabGroupForWindow(windowData.id)
+	local tabGroup = self:getTabGroupForWindow(window.id)
 	if tabGroup then
 		for _, tabWindowId in ipairs(tabGroup) do
 			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
 		end
 	else
-		self:assignWindowToVirtualSpace(windowData.id, virtualSpace)
+		self:assignWindowToVirtualSpace(window.id, virtualSpace)
 	end
 
-	self:saveFocusedWindowInVirtualSpace(virtualSpace, windowData.id)
+	self:saveFocusedWindowInVirtualSpace(virtualSpace, window.id)
 end
 
 function SpacesModel:unregisterWindowById(windowId)
