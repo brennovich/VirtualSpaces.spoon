@@ -50,23 +50,35 @@ function SpacesModel:assignWindowToSpace(window, virtualSpace)
 		self._windows[window.id] = window
 
 		if window.tabCount and window.tabCount > 1 then
-			local existingGroupId = self:_findGroupByFrameAndApp(window.frame, window.appName)
+			local existingGroupId = nil
+			for groupId, group in pairs(self._tabGroups) do
+				if Window.framesEqual(group.frame, window.frame) and group.appName == window.appName then
+					existingGroupId = groupId
+					break
+				end
+			end
 
 			if existingGroupId then
-				self:_addWindowToTabGroup(window.id, existingGroupId)
+				table.insert(self._tabGroups[existingGroupId].windowIds, window.id)
+				self._windowToTabGroup[window.id] = existingGroupId
 			else
-				local groupId = self:_createTabGroup(window)
-				local registeredWindows = self:_findRegisteredWindowsByFrameAndApp(window.frame, window.appName)
-				for _, regWindowId in ipairs(registeredWindows) do
-					self:_addWindowToTabGroup(regWindowId, groupId)
+				local groupId = self._nextGroupId
+				self._nextGroupId = self._nextGroupId + 1
+				self._tabGroups[groupId] = {frame = window.frame, appName = window.appName, windowIds = {}}
+
+				for windowId, windowData in pairs(self._windows) do
+					if windowData.appName == window.appName and Window.framesEqual(windowData.frame, window.frame) then
+						table.insert(self._tabGroups[groupId].windowIds, windowId)
+						self._windowToTabGroup[windowId] = groupId
+					end
 				end
 			end
 		end
 	end
 
-	local tabGroup = self:getTabGroupForWindow(window.id)
-	if tabGroup then
-		for _, tabWindowId in ipairs(tabGroup) do
+	local groupId = self._windowToTabGroup[window.id]
+	if groupId and self._tabGroups[groupId] then
+		for _, tabWindowId in ipairs(self._tabGroups[groupId].windowIds) do
 			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
 		end
 	else
@@ -81,7 +93,15 @@ function SpacesModel:unregisterWindowById(windowId)
 
 	local groupId = self._windowToTabGroup[windowId]
 	if groupId then
-		self:_removeWindowFromTabGroup(windowId, groupId)
+		local windowIds = self._tabGroups[groupId].windowIds
+		for i, id in ipairs(windowIds) do
+			if id == windowId then
+				table.remove(windowIds, i)
+				break
+			end
+		end
+
+		self._windowToTabGroup[windowId] = nil
 
 		if #self._tabGroups[groupId].windowIds == 0 then
 			self._tabGroups[groupId] = nil
@@ -159,67 +179,6 @@ function SpacesModel:setCurrentVirtualSpace(virtualSpace)
 	self._currentVirtualSpace = virtualSpace
 end
 
-function SpacesModel:_removeWindowFromList(virtualSpace, windowId)
-	local windows = self._virtualSpaceWindowsMap[virtualSpace]
-	if not windows then return end
-
-	for i, wId in ipairs(windows) do
-		if wId == windowId then
-			table.remove(windows, i)
-			return
-		end
-	end
-end
-
-function SpacesModel:_findRegisteredWindowsByFrameAndApp(frame, appName)
-	local matches = {}
-	for windowId, windowData in pairs(self._windows) do
-		if windowData.appName == appName and Window.framesEqual(windowData.frame, frame) then
-			table.insert(matches, windowId)
-		end
-	end
-	return matches
-end
-
-function SpacesModel:_createTabGroup(windowData)
-	local groupId = self._nextGroupId
-	self._nextGroupId = self._nextGroupId + 1
-
-	self._tabGroups[groupId] = {
-		frame = windowData.frame,
-		appName = windowData.appName,
-		windowIds = {}
-	}
-
-	return groupId
-end
-
-function SpacesModel:_addWindowToTabGroup(windowId, groupId)
-	table.insert(self._tabGroups[groupId].windowIds, windowId)
-	self._windowToTabGroup[windowId] = groupId
-end
-
-function SpacesModel:_removeWindowFromTabGroup(windowId, groupId)
-	local windowIds = self._tabGroups[groupId].windowIds
-	for i, id in ipairs(windowIds) do
-		if id == windowId then
-			table.remove(windowIds, i)
-			break
-		end
-	end
-
-	self._windowToTabGroup[windowId] = nil
-end
-
-function SpacesModel:_findGroupByFrameAndApp(frame, appName)
-	for groupId, group in pairs(self._tabGroups) do
-		if Window.framesEqual(group.frame, frame) and group.appName == appName then
-			return groupId
-		end
-	end
-	return nil
-end
-
 function SpacesModel:getTabGroupForWindow(windowId)
 	local groupId = self._windowToTabGroup[windowId]
 	if not groupId then
@@ -244,5 +203,18 @@ function SpacesModel:getTabSiblingsBeforeDestruction(windowId)
 
 	return #siblings > 0 and siblings or nil
 end
+
+function SpacesModel:_removeWindowFromList(virtualSpace, windowId)
+	local windows = self._virtualSpaceWindowsMap[virtualSpace]
+	if not windows then return end
+
+	for i, wId in ipairs(windows) do
+		if wId == windowId then
+			table.remove(windows, i)
+			return
+		end
+	end
+end
+
 
 return SpacesModel
