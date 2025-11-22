@@ -1,10 +1,11 @@
 local lu = require('luaunit')
+local helpers = require('tests/test_helpers')
 
 local NativeSpaceManager = require('NativeSpaceManager')
 
 TestNativeSpaceManager = {}
 
-local function createMocksForSetup(options)
+local function mokedNativeSpaceManager(options)
 	options = options or {}
 	local screenUUID = options.screenUUID or "screen-uuid-123"
 	local initialSpaces = options.initialSpaces or {"space-1", "space-2"}
@@ -17,228 +18,157 @@ local function createMocksForSetup(options)
 	local finalAllSpacesData = {}
 	finalAllSpacesData[screenUUID] = finalSpaces
 
-	local allSpacesCalls = 0
-	local usleepCalls = {}
-	local removedSpaces = {}
-	local addSpaceCalls = {}
-	local gotoSpaceCalls = {}
-	local keyStrokeCalls = {}
-	local waitTimeCalls = {}
+	local removedSpaces, addSpaceCalls = {}, {}
+	local counters = {
+		allSpacesCalls = 0,
+		openMissionControlCalls = 0
+	}
 
 	local mockScreen = {
-		mainScreen = function()
-			return {
-				getUUID = function() return screenUUID end
-			}
-		end
+		mainScreen = function() return { getUUID = function() return screenUUID end } end
 	}
 
 	local mockSpaces = {
-		setDefaultMCwaitTime = options.setDefaultMCwaitTime or function(time)
-			table.insert(waitTimeCalls, time)
-		end,
-		allSpaces = options.allSpaces or function()
-			allSpacesCalls = allSpacesCalls + 1
-			if allSpacesCalls == 1 then
+		activeSpaceOnScreen = function() return activeSpace end,
+		allSpaces = function()
+			counters.allSpacesCalls = counters.allSpacesCalls + 1
+			if counters.allSpacesCalls == 1 then
 				return initialAllSpacesData
 			else
 				return finalAllSpacesData
 			end
 		end,
-		activeSpaceOnScreen = options.activeSpaceOnScreen or function()
-			return activeSpace
+		removeSpace = function(spaceId, destroyMC)
+			table.insert(removedSpaces, {id = spaceId, destroyMC = destroyMC})
 		end,
-		removeSpace = options.removeSpace or function(spaceId, animated)
-			table.insert(removedSpaces, {id = spaceId, animated = animated})
+		openMissionControl = function()
+			counters.openMissionControlCalls = counters.openMissionControlCalls + 1
 		end,
-		gotoSpace = options.gotoSpace or function(spaceId)
-			table.insert(gotoSpaceCalls, spaceId)
-		end,
-		addSpaceToScreen = options.addSpaceToScreen or function(screenUUID, toEnd)
+		addSpaceToScreen = function(screenUUID, toEnd)
 			table.insert(addSpaceCalls, {screen = screenUUID, toEnd = toEnd})
 		end
 	}
 
-	local mockTimer = {
-		usleep = options.usleep or function(delay)
-			table.insert(usleepCalls, delay)
-		end
-	}
-
-	local mockEventtap = {
-		keyStroke = options.keyStroke or function(modifiers, key)
-			table.insert(keyStrokeCalls, {modifiers = modifiers, key = key})
-		end
-	}
-
-	local manager = NativeSpaceManager.new({
+	return NativeSpaceManager.new({
 		hsSpaces = mockSpaces,
 		hsScreen = mockScreen,
-		hsTimer = mockTimer,
-		hsEventtap = mockEventtap
-	})
-
-	return {
-		manager = manager,
+	}), {
 		screenUUID = screenUUID,
-		usleepCalls = usleepCalls,
 		removedSpaces = removedSpaces,
+		counters = counters,
 		addSpaceCalls = addSpaceCalls,
-		gotoSpaceCalls = gotoSpaceCalls,
-		keyStrokeCalls = keyStrokeCalls,
-		waitTimeCalls = waitTimeCalls
 	}
 end
 
 function TestNativeSpaceManager:testNew()
-	local mockSpaces = {}
-	local mockScreen = {}
-	local mockTimer = {}
-	local mockEventtap = {}
-	local mockTelemetry = {}
-
 	local manager = NativeSpaceManager.new({
-		hsSpaces = mockSpaces,
-		hsScreen = mockScreen,
-		hsTimer = mockTimer,
-		hsEventtap = mockEventtap,
-		telemetry = mockTelemetry
+		hsSpaces = {},
+		hsScreen = {},
+		telemetry = {}
 	})
 
 	lu.assertNotNil(manager)
-	lu.assertEquals(manager._hsSpaces, mockSpaces)
-	lu.assertEquals(manager._hsScreen, mockScreen)
-	lu.assertEquals(manager._hsTimer, mockTimer)
-	lu.assertEquals(manager._hsEventtap, mockEventtap)
-	lu.assertEquals(manager._telemetry, mockTelemetry)
+	lu.assertEquals(manager._hsSpaces, {})
+	lu.assertEquals(manager._hsScreen, {})
+	lu.assertEquals(manager._telemetry, {})
 end
 
 function TestNativeSpaceManager:testNewWithDefaults()
-	local manager = NativeSpaceManager.new()
+	helpers.withHsGlobal({}, function()
+		local manager = NativeSpaceManager.new()
 
-	lu.assertNotNil(manager)
-	lu.assertNotNil(manager._telemetry)
-end
+		lu.assertNotNil(manager)
+		lu.assertNotNil(manager._telemetry)
 
-function TestNativeSpaceManager:testGetActiveSpaceBeforeSetup()
-	local manager = NativeSpaceManager.new()
-
-	lu.assertNil(manager:getActiveSpace())
-end
-
-function TestNativeSpaceManager:testGetStorageSpaceBeforeSetup()
-	local manager = NativeSpaceManager.new()
-
-	lu.assertNil(manager:getStorageSpace())
+		lu.assertNil(manager:getActiveSpace())
+		lu.assertNil(manager:getStorageSpace())
+	end)
 end
 
 function TestNativeSpaceManager:testUpdateSpaces()
-	local manager = NativeSpaceManager.new()
+	helpers.withHsGlobal({}, function()
+		local manager = NativeSpaceManager.new()
 
-	manager:updateSpaces("active-123", "storage-456")
+		manager:updateSpaces("321", "123")
+		lu.assertEquals(manager:getActiveSpace(), "321")
+		lu.assertEquals(manager:getStorageSpace(), "123")
 
-	lu.assertEquals(manager:getActiveSpace(), "active-123")
-	lu.assertEquals(manager:getStorageSpace(), "storage-456")
-end
-
-function TestNativeSpaceManager:testUpdateSpacesMultipleTimes()
-	local manager = NativeSpaceManager.new()
-
-	manager:updateSpaces("active-1", "storage-1")
-	lu.assertEquals(manager:getActiveSpace(), "active-1")
-	lu.assertEquals(manager:getStorageSpace(), "storage-1")
-
-	manager:updateSpaces("active-2", "storage-2")
-	lu.assertEquals(manager:getActiveSpace(), "active-2")
-	lu.assertEquals(manager:getStorageSpace(), "storage-2")
+		manager:updateSpaces("123", "321")
+		lu.assertEquals(manager:getActiveSpace(), "123")
+		lu.assertEquals(manager:getStorageSpace(), "321")
+	end)
 end
 
 function TestNativeSpaceManager:testSetupForMainScreenWithExactlyTwoSpaces()
-	local mocks = createMocksForSetup({
+	local manager, inspect = mokedNativeSpaceManager({
 		initialSpaces = {"space-1", "space-2"}
 	})
 
-	local active, storage = mocks.manager:setupForMainScreen()
+	local active, storage = manager:setupForMainScreen()
 
 	lu.assertEquals(active, "space-1")
 	lu.assertEquals(storage, "space-2")
-	lu.assertEquals(mocks.manager:getActiveSpace(), "space-1")
-	lu.assertEquals(mocks.manager:getStorageSpace(), "space-2")
-	lu.assertEquals(#mocks.usleepCalls, 3)
+	lu.assertEquals(manager:getActiveSpace(), "space-1")
+	lu.assertEquals(manager:getStorageSpace(), "space-2")
 end
 
 function TestNativeSpaceManager:testSetupForMainScreenRemovesExtraSpaces()
-	local mocks = createMocksForSetup({
+	local manager, inspect = mokedNativeSpaceManager({
 		initialSpaces = {"space-1", "space-2", "space-3", "space-4"},
 		finalSpaces = {"space-1", "space-new"}
 	})
 
-	local active, storage = mocks.manager:setupForMainScreen()
+	local active, storage = manager:setupForMainScreen()
 
-	lu.assertEquals(#mocks.removedSpaces, 3)
-	lu.assertEquals(mocks.removedSpaces[1].id, "space-2")
-	lu.assertEquals(mocks.removedSpaces[1].animated, false)
-	lu.assertEquals(mocks.removedSpaces[2].id, "space-3")
-	lu.assertEquals(mocks.removedSpaces[3].id, "space-4")
-	lu.assertEquals(#mocks.usleepCalls, 5)
+	lu.assertEquals(#inspect.removedSpaces, 3)
+	lu.assertEquals(inspect.removedSpaces[1].id, "space-2")
+	lu.assertEquals(inspect.removedSpaces[1].destroyMC, false)
+	lu.assertEquals(inspect.removedSpaces[2].id, "space-3")
+	lu.assertEquals(inspect.removedSpaces[3].id, "space-4")
 	lu.assertEquals(active, "space-1")
 	lu.assertEquals(storage, "space-new")
 end
 
-function TestNativeSpaceManager:testSetupForMainScreenNavigatesToFirstSpace()
-	local mocks = createMocksForSetup({
-		activeSpace = "space-2"
-	})
+function TestNativeSpaceManager:testSetupForMainScreenInitiatesMissionControl()
+	local manager, inspect = mokedNativeSpaceManager()
 
-	mocks.manager:setupForMainScreen()
+	manager:setupForMainScreen()
 
-	lu.assertEquals(#mocks.gotoSpaceCalls, 1)
-	lu.assertEquals(mocks.gotoSpaceCalls[1], "space-1")
-	lu.assertEquals(#mocks.keyStrokeCalls, 1)
-	lu.assertEquals(mocks.keyStrokeCalls[1].key, "escape")
+	lu.assertEquals(inspect.counters.openMissionControlCalls, 1)
 end
 
 function TestNativeSpaceManager:testSetupForMainScreenCreatesStorageSpace()
-	local mocks = createMocksForSetup()
+	local manager, inspect = mokedNativeSpaceManager()
 
-	mocks.manager:setupForMainScreen()
+	manager:setupForMainScreen()
 
-	lu.assertEquals(#mocks.addSpaceCalls, 1)
-	lu.assertEquals(mocks.addSpaceCalls[1].screen, mocks.screenUUID)
-	lu.assertEquals(mocks.addSpaceCalls[1].toEnd, true)
-end
-
-function TestNativeSpaceManager:testSetupForMainScreenSetsDefaultMCwaitTime()
-	local mocks = createMocksForSetup()
-
-	mocks.manager:setupForMainScreen()
-
-	lu.assertEquals(#mocks.waitTimeCalls, 1)
-	lu.assertEquals(mocks.waitTimeCalls[1], 0.5)
+	lu.assertEquals(#inspect.addSpaceCalls, 1)
+	lu.assertEquals(inspect.addSpaceCalls[1].screen, inspect.screenUUID)
+	lu.assertEquals(inspect.addSpaceCalls[1].toEnd, true)
 end
 
 function TestNativeSpaceManager:testSetupForMainScreenWithOneSpaceInitially()
-	local mocks = createMocksForSetup({
+	local manager = mokedNativeSpaceManager({
 		initialSpaces = {"space-1"},
 		finalSpaces = {"space-1", "space-storage"}
 	})
 
-	local active, storage = mocks.manager:setupForMainScreen()
+	local active, storage = manager:setupForMainScreen()
 
 	lu.assertEquals(active, "space-1")
 	lu.assertEquals(storage, "space-storage")
-	lu.assertEquals(mocks.manager:getActiveSpace(), "space-1")
-	lu.assertEquals(mocks.manager:getStorageSpace(), "space-storage")
+	lu.assertEquals(manager:getActiveSpace(), "space-1")
+	lu.assertEquals(manager:getStorageSpace(), "space-storage")
 end
 
 function TestNativeSpaceManager:testSetupFailsWhenOnlyOneSpaceExists()
-	local mocks = createMocksForSetup({
+	local manager = mokedNativeSpaceManager({
 		initialSpaces = {"space-1"},
 		finalSpaces = {"space-1"}
 	})
 
 	local success, err = pcall(function()
-		mocks.manager:setupForMainScreen()
+		manager:setupForMainScreen()
 	end)
 
 	lu.assertFalse(success)
@@ -246,27 +176,13 @@ function TestNativeSpaceManager:testSetupFailsWhenOnlyOneSpaceExists()
 end
 
 function TestNativeSpaceManager:testSetupFailsWhenMoreThanTwoSpacesExist()
-	local mocks = createMocksForSetup({
+	local manager = mokedNativeSpaceManager({
 		initialSpaces = {"space-1", "space-2", "space-3"},
 		finalSpaces = {"space-1", "space-2", "space-3"}
 	})
 
 	local success, err = pcall(function()
-		mocks.manager:setupForMainScreen()
-	end)
-
-	lu.assertFalse(success)
-	lu.assertStrContains(err, "Expected exactly 2 spaces")
-end
-
-function TestNativeSpaceManager:testSetupFailsWhenNoSpacesExist()
-	local mocks = createMocksForSetup({
-		initialSpaces = {"space-1"},
-		finalSpaces = {}
-	})
-
-	local success, err = pcall(function()
-		mocks.manager:setupForMainScreen()
+		manager:setupForMainScreen()
 	end)
 
 	lu.assertFalse(success)

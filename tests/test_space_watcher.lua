@@ -38,12 +38,11 @@ function TestSpaceWatcher:setUp()
 			activeSpaceOnScreen = function()
 				return self.currentSpace
 			end,
-			setDefaultMCwaitTime = function() end,
 			allSpaces = function()
 				return {["screen-123"] = {self.spaces.activeSpace, self.spaces.storageSpace}}
 			end,
+			openMissionControl = function() end,
 			removeSpace = function() end,
-			gotoSpace = function() end,
 			addSpaceToScreen = function() end,
 			watcher = {
 				new = function(callback)
@@ -58,12 +57,6 @@ function TestSpaceWatcher:setUp()
 					getUUID = function() return "screen-123" end
 				}
 			end
-		},
-		timer = {
-			usleep = function() end
-		},
-		eventtap = {
-			keyStroke = function() end
 		},
 		window = {
 			focusedWindow = function()

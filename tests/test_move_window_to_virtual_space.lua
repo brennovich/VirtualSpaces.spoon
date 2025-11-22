@@ -27,12 +27,11 @@ function TestMoveWindowToVirtualSpace:setUp()
 				table.insert(self.movedWindows, {window = window, space = space})
 			end,
 			activeSpaceOnScreen = function() return self.spaces.activeSpace end,
-			setDefaultMCwaitTime = function() end,
 			allSpaces = function()
 				return {["screen-123"] = {self.spaces.activeSpace, self.spaces.storageSpace}}
 			end,
+			openMissionControl = function() end,
 			removeSpace = function() end,
-			gotoSpace = function() end,
 			addSpaceToScreen = function() end,
 			watcher = { new = function() return {start = function() end} end }
 		},
@@ -40,12 +39,6 @@ function TestMoveWindowToVirtualSpace:setUp()
 			mainScreen = function()
 				return { getUUID = function() return "screen-123" end }
 			end
-		},
-		timer = {
-			usleep = function() end
-		},
-		eventtap = {
-			keyStroke = function() end
 		},
 		window = {
 			focusedWindow = function() return self.focusedWindowValue end,

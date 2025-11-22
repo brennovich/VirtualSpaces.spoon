@@ -8,6 +8,7 @@ build: docs.json
 install: build
 	mkdir -p ~/.hammerspoon/Spoons
 	rm -rf ~/.hammerspoon/Spoons/VirtualSpaces.spoon
+	sed -i '' "s/Telemetry.new('VirtualSpaces', 'warning')/Telemetry.new('VirtualSpaces', 'debug')/" release/VirtualSpaces.spoon/init.lua
 	cp -r release/VirtualSpaces.spoon ~/.hammerspoon/Spoons/
 
 docs.json: init.lua

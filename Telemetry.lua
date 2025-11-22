@@ -21,7 +21,7 @@ end
 function Telemetry.new(componentName, logLevel)
 	local self = setmetatable({}, Telemetry)
 	self._componentName = componentName
-	self._logger = hs and hs.logger and hs.logger.new(componentName, logLevel or 'warning')
+	self._logger = hs and hs.logger and hs.logger.new(componentName, logLevel or 'debug')
 	return self
 end
 

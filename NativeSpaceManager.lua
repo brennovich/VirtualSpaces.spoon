@@ -7,7 +7,7 @@
 --   - the "storage" Space where the all the other windows from the other
 --     Virtual Spaces are kept hidden
 --
--- This module makes sure to setup the Native Spaces accordingly, ensuring that
+-- This module makes setups the Native Spaces accordingly, ensuring that
 -- indenpendently of your configuration before loading the spoon, you will end up
 -- with exactly two Spaces on the main screen.
 local Telemetry = require("Telemetry")
@@ -15,9 +15,7 @@ local Telemetry = require("Telemetry")
 local NativeSpaceManager = {}
 NativeSpaceManager.__index = NativeSpaceManager
 
-local MISSION_CONTROL_WAIT_TIME_S = 0.5
-local SPACE_REMOVAL_DELAY_US = 100000
-local SPACE_CREATION_DELAY_US = 10000
+local TARGET_NUMBER_OF_SPACES = 2
 
 function NativeSpaceManager.new(deps)
 	deps = deps or {}
@@ -25,30 +23,35 @@ function NativeSpaceManager.new(deps)
 
 	self._hsSpaces = deps.hsSpaces or hs.spaces
 	self._hsScreen = deps.hsScreen or hs.screen
-	self._hsTimer = deps.hsTimer or hs.timer
-	self._hsEventtap = deps.hsEventtap or hs.eventtap
-
 	self._telemetry = deps.telemetry or Telemetry.NoOp.new()
+
 	self._activeSpace = nil
 	self._storageSpace = nil
+
 	return self
 end
 
 function NativeSpaceManager:setupForMainScreen()
 	return self._telemetry:span("setupForMainScreen", function()
-		self._hsSpaces.setDefaultMCwaitTime(MISSION_CONTROL_WAIT_TIME_S)
-
 		local mainScreen = self._hsScreen.mainScreen():getUUID()
 		local allSpaces = self._telemetry:span("allSpaces()", function()
 			return self._hsSpaces.allSpaces()
 		end)
-		local screenSpaces = allSpaces[mainScreen]
 
-		self:_ensureOnFirstSpace(screenSpaces)
-		self:_removeExtraSpaces(screenSpaces)
-		self:_createStorageSpace(mainScreen)
+		local activeSpaceBeforeSetup = self._hsSpaces.activeSpaceOnScreen()
+		self._hsSpaces.openMissionControl()
 
-		local refreshedSpaces = self:_verifySpaceCount(mainScreen, 2, 3)
+		for _, spaceID in ipairs(allSpaces[mainScreen]) do
+			if spaceID ~= activeSpaceBeforeSetup then
+				self._telemetry:span(string.format("removeSpace(%s)", spaceID), function()
+					self._hsSpaces.removeSpace(spaceID, false) end)
+			end
+		end
+
+		self._telemetry:span("addSpaceToScreen()", function()
+			self._hsSpaces.addSpaceToScreen(mainScreen, true) end)
+
+		local refreshedSpaces = self:_verify(mainScreen)
 
 		self._activeSpace = refreshedSpaces[1]
 		self._storageSpace = refreshedSpaces[2]
@@ -70,67 +73,23 @@ function NativeSpaceManager:updateSpaces(activeSpace, storageSpace)
 	self._storageSpace = storageSpace
 end
 
-function NativeSpaceManager:_ensureOnFirstSpace(screenSpaces)
-	local activeSpace = self._telemetry:span("activeSpaceOnScreen()", function()
-		return self._hsSpaces.activeSpaceOnScreen()
-	end)
+function NativeSpaceManager:_verify(mainScreen)
+	local allSpaces = self._hsSpaces.allSpaces()
+	local spaces = allSpaces[mainScreen]
 
-	if activeSpace ~= screenSpaces[1] then
-		self._telemetry:span("gotoSpace()", function()
-			self._hsSpaces.gotoSpace(screenSpaces[1])
-		end)
-		self._telemetry:span("keyStroke(escape)", function()
-			self._hsEventtap.keyStroke({}, "escape")
-		end)
+	if not spaces then
+		error(
+			"VirtualSpaces setup failed: Unable to query spaces for main screen. " ..
+			"Check System Preferences > Security & Privacy > Accessibility."
+		)
 	end
-end
 
-function NativeSpaceManager:_removeExtraSpaces(screenSpaces)
-	if #screenSpaces > 1 then
-		for i = 2, #screenSpaces do
-			self._hsTimer.usleep(SPACE_REMOVAL_DELAY_US)
-			self._telemetry:span("removeSpace()", function()
-				self._hsSpaces.removeSpace(screenSpaces[i], false)
-			end)
-		end
-	end
-end
+	if #spaces == TARGET_NUMBER_OF_SPACES then return spaces end
 
-function NativeSpaceManager:_createStorageSpace(mainScreen)
-	self._hsTimer.usleep(SPACE_CREATION_DELAY_US)
-	self._telemetry:span("addSpaceToScreen()", function()
-		self._hsSpaces.addSpaceToScreen(mainScreen, true)
-	end)
-end
-
-function NativeSpaceManager:_verifySpaceCount(mainScreen, expectedCount, maxRetries)
-	maxRetries = maxRetries or 3
-
-	for attempt = 1, maxRetries do
-		self._hsTimer.usleep(SPACE_REMOVAL_DELAY_US)
-		local allSpaces = self._telemetry:span("allSpaces()", function()
-			return self._hsSpaces.allSpaces()
-		end)
-		local spaces = allSpaces[mainScreen]
-
-		if not spaces then
-			if attempt == maxRetries then
-				error(
-					"VirtualSpaces setup failed: Unable to query spaces for main screen. " ..
-					"Check System Preferences > Security & Privacy > Accessibility."
-				)
-			end
-		elseif #spaces == expectedCount then
-			return spaces
-		elseif attempt == maxRetries then
-			error(string.format(
-				"VirtualSpaces setup failed: Expected exactly %d spaces after %d retries, but found %d",
-				expectedCount,
-				maxRetries,
-				#spaces
-			))
-		end
-	end
+	error(string.format(
+		"VirtualSpaces setup failed: Expected exactly %d spaces after setup, but found %d. Try reloading Hammerspoon.",
+		TARGET_NUMBER_OF_SPACES, #spaces
+	))
 end
 
 return NativeSpaceManager
