@@ -1,5 +1,6 @@
 .PHONY: test test/acceptance install-deps install
 build: docs.json
+	rm -rf release/*
 	mkdir -p release/VirtualSpaces.spoon
 	cp ./*.lua docs.json release/VirtualSpaces.spoon/
 	cd release && zip -r VirtualSpaces.spoon.zip VirtualSpaces.spoon
@@ -10,7 +11,10 @@ install: build
 	cp -r release/VirtualSpaces.spoon ~/.hammerspoon/Spoons/
 
 docs.json: init.lua
-	hs -c "hs.doc.builder.genJSON(\"$$(pwd)\")" | grep -v "^--" > $@
+	mkdir -p .tmp
+	cp *.lua .tmp/
+	hs -c "hs.doc.builder.genJSON(\"$$(pwd)/.tmp\")" | grep -v "^--" > $@
+	rm -rf .tmp
 
 install-deps:
 	luarocks install --local --only-deps virtualspaces-1.0-1.rockspec
