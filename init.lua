@@ -70,36 +70,24 @@ function obj:init()
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
 	end)
+
 	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
 	end)
+
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
 		local windowId = window:id()
-		local tabSiblings = self.model:getTabSiblingsBeforeDestruction(windowId)
 
 		self.model:unregisterWindowById(windowId)
 		self.windowCache:remove(windowId)
-
-		if tabSiblings and #tabSiblings > 0 then
-			for _, siblingId in ipairs(tabSiblings) do
-				if self:_focusWindowById(siblingId) then
-					self.model:saveFocusedWindowInVirtualSpace(self.model:getCurrentVirtualSpace(), siblingId)
-					return
-				end
-			end
-		end
 
 		self:_restoreWindowsFocusForVirtualSpace()
 	end)
 
 	self.spaceWatcher = hs.spaces.watcher.new(function(spaceId)
-		local actualSpace = hs.spaces.activeSpaceOnScreen()
-
-		if actualSpace == self.nativeSpaceManager:getStorageSpace() then
+		if hs.spaces.activeSpaceOnScreen() == self.nativeSpaceManager:getStorageSpace() then
 			local focusedWindow = hs.window.focusedWindow()
-			if not focusedWindow then
-				return
-			end
+			if not focusedWindow then return end
 
 			local windowVirtualSpace = self.model:getVirtualSpaceForWindow(focusedWindow:id())
 
@@ -163,7 +151,7 @@ end
 
 --- VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)
 --- Method
---- Assigns a window to a different virtual workspace and moves it to the appropriate native space.
+--- Assigns a window to a different virtual space by moving it to the appropriate native space.
 ---
 --- Parameters:
 --- * window - Hammerspoon window object to move (optional). If nil or not provided, uses the currently focused window. If no focused window exists or the window is not valid (fullscreen or non-standard), the function returns without doing anything.
@@ -176,26 +164,19 @@ end
 --- * If target is the current workspace, moves window to active space (visible)
 --- * If target is a different workspace, moves window to storage space (hidden)
 --- * Updates workspace mapping and restores focus appropriately
---- * When window parameter is nil, this is NOT an error condition - it intentionally uses the focused window as a convenience feature
 function obj:moveWindowToVirtualSpace(window, virtualSpace)
 	if not virtualSpace or virtualSpace < 1 then return end
 
 	return self._telemetry:span(string.format("moveWindowToVirtualSpace(%d)", virtualSpace), function()
-		if not window then
-			window = self._telemetry:span("focusedWindow()", function()
-				return hs.window.focusedWindow()
-			end)
-			if not window then return end
-		end
-
+		local window = window or hs.window.focusedWindow()
 		if not self:_isValidWindowForVirtualSpace(window) then return end
-		self.model:moveWindowToVirtualSpace(window:id(), virtualSpace)
 
 		local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
 			and self.nativeSpaceManager:getActiveSpace()
 			or self.nativeSpaceManager:getStorageSpace()
 
-		self._telemetry:span("moveWindowToSpace()", function()
+		self._telemetry:span(string.format("moveWindowToSpace(%d)", window:id()), function()
+			self.model:moveWindowToVirtualSpace(window:id(), virtualSpace)
 			hs.spaces.moveWindowToSpace(window, targetNativeSpace)
 		end)
 

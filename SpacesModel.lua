@@ -124,6 +124,14 @@ function SpacesModel:unregisterWindowById(windowId)
 			end
 		end
 
+		local tabSiblings = self:getTabSiblingsBeforeDestruction(windowId)
+		if tabSiblings and #tabSiblings > 0 then
+			for _, siblingId in ipairs(tabSiblings) do
+				self:saveFocusedWindowInVirtualSpace(self:getCurrentVirtualSpace(), siblingId)
+				break
+			end
+		end
+
 		self._windowToGroup[windowId] = nil
 
 		if #self._groups[groupId].windowIds == 0 then
