@@ -188,7 +188,8 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 			if not window then return end
 		end
 
-		self:_assignWindowToVirtualSpace(window, virtualSpace)
+		if not self:_isValidWindowForVirtualSpace(window) then return end
+		self.model:moveWindowToVirtualSpace(window:id(), virtualSpace)
 
 		local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
 			and self.nativeSpaceManager:getActiveSpace()

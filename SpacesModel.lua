@@ -13,9 +13,8 @@ function SpacesModel.new()
 	self._virtualSpaceWindowsMap = {}
 	self._currentVirtualSpace = 1
 
-	self._windows = {}
-	self._tabGroups = {}
-	self._windowToTabGroup = {}
+	self._groups = {}
+	self._windowToGroup = {}
 	self._nextGroupId = 1
 
 	return self
@@ -46,54 +45,78 @@ function SpacesModel:assignWindowToSpace(window, virtualSpace)
 		return
 	end
 
-	if self._windows[window.id] == nil then
-		self._windows[window.id] = window
+	local isNewWindow = not self._windowToGroup[window.id]
+
+	if isNewWindow then
+		local existingGroupId = nil
 
 		if window.tabCount and window.tabCount > 1 then
-			local existingGroupId = nil
-			for groupId, group in pairs(self._tabGroups) do
+			for groupId, group in pairs(self._groups) do
 				if Window.framesEqual(group.frame, window.frame) and group.appName == window.appName then
 					existingGroupId = groupId
 					break
 				end
 			end
+		end
 
-			if existingGroupId then
-				table.insert(self._tabGroups[existingGroupId].windowIds, window.id)
-				self._windowToTabGroup[window.id] = existingGroupId
-			else
-				local groupId = self._nextGroupId
-				self._nextGroupId = self._nextGroupId + 1
-				self._tabGroups[groupId] = {frame = window.frame, appName = window.appName, windowIds = {}}
+		if existingGroupId then
+			table.insert(self._groups[existingGroupId].windowIds, window.id)
+			self._windowToGroup[window.id] = existingGroupId
+		else
+			local groupId = self._nextGroupId
+			self._nextGroupId = self._nextGroupId + 1
+			self._groups[groupId] = {frame = window.frame, appName = window.appName, windowIds = {window.id}}
+			self._windowToGroup[window.id] = groupId
 
-				for windowId, windowData in pairs(self._windows) do
-					if windowData.appName == window.appName and Window.framesEqual(windowData.frame, window.frame) then
-						table.insert(self._tabGroups[groupId].windowIds, windowId)
-						self._windowToTabGroup[windowId] = groupId
+			if window.tabCount and window.tabCount > 1 then
+				local groupsToMerge = {}
+				for otherGroupId, group in pairs(self._groups) do
+					if otherGroupId ~= groupId and
+					   group.appName == window.appName and
+					   Window.framesEqual(group.frame, window.frame) then
+						table.insert(groupsToMerge, otherGroupId)
 					end
+				end
+				for _, otherGroupId in ipairs(groupsToMerge) do
+					for _, otherWindowId in ipairs(self._groups[otherGroupId].windowIds) do
+						table.insert(self._groups[groupId].windowIds, otherWindowId)
+						self._windowToGroup[otherWindowId] = groupId
+					end
+					self._groups[otherGroupId] = nil
 				end
 			end
 		end
+
+		local groupId = self._windowToGroup[window.id]
+		for _, tabWindowId in ipairs(self._groups[groupId].windowIds) do
+			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
+		end
+
+		self:saveFocusedWindowInVirtualSpace(virtualSpace, window.id)
+	end
+end
+
+function SpacesModel:moveWindowToVirtualSpace(windowId, virtualSpace)
+	if not windowId or not virtualSpace then
+		return
 	end
 
-	local groupId = self._windowToTabGroup[window.id]
-	if groupId and self._tabGroups[groupId] then
-		for _, tabWindowId in ipairs(self._tabGroups[groupId].windowIds) do
+	local groupId = self._windowToGroup[windowId]
+	if groupId then
+		for _, tabWindowId in ipairs(self._groups[groupId].windowIds) do
 			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
 		end
 	else
-		self:assignWindowToVirtualSpace(window.id, virtualSpace)
+		self:assignWindowToVirtualSpace(windowId, virtualSpace)
 	end
 
-	self:saveFocusedWindowInVirtualSpace(virtualSpace, window.id)
+	self:saveFocusedWindowInVirtualSpace(virtualSpace, windowId)
 end
 
 function SpacesModel:unregisterWindowById(windowId)
-	self._windows[windowId] = nil
-
-	local groupId = self._windowToTabGroup[windowId]
+	local groupId = self._windowToGroup[windowId]
 	if groupId then
-		local windowIds = self._tabGroups[groupId].windowIds
+		local windowIds = self._groups[groupId].windowIds
 		for i, id in ipairs(windowIds) do
 			if id == windowId then
 				table.remove(windowIds, i)
@@ -101,10 +124,10 @@ function SpacesModel:unregisterWindowById(windowId)
 			end
 		end
 
-		self._windowToTabGroup[windowId] = nil
+		self._windowToGroup[windowId] = nil
 
-		if #self._tabGroups[groupId].windowIds == 0 then
-			self._tabGroups[groupId] = nil
+		if #self._groups[groupId].windowIds == 0 then
+			self._groups[groupId] = nil
 		end
 	end
 
@@ -180,22 +203,22 @@ function SpacesModel:setCurrentVirtualSpace(virtualSpace)
 end
 
 function SpacesModel:getTabGroupForWindow(windowId)
-	local groupId = self._windowToTabGroup[windowId]
+	local groupId = self._windowToGroup[windowId]
 	if not groupId then
 		return nil
 	end
 
-	return self._tabGroups[groupId].windowIds
+	return self._groups[groupId].windowIds
 end
 
 function SpacesModel:getTabSiblingsBeforeDestruction(windowId)
-	local groupId = self._windowToTabGroup[windowId]
+	local groupId = self._windowToGroup[windowId]
 	if not groupId then
 		return nil
 	end
 
 	local siblings = {}
-	for _, tabWindowId in ipairs(self._tabGroups[groupId].windowIds) do
+	for _, tabWindowId in ipairs(self._groups[groupId].windowIds) do
 		if tabWindowId ~= windowId then
 			table.insert(siblings, tabWindowId)
 		end

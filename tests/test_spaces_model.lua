@@ -399,6 +399,53 @@ function TestSpacesModel:testAssignWindowToSpaceWithTabbedWindows()
 	lu.assertEquals(model:getFocusedWindowForVirtualSpace(2), 200)
 end
 
+function TestSpacesModel:testAssignWindowToSpaceDoesNotReassignRegisteredWindow()
+	local model = SpacesModel.new()
+	local window = h.createSimpleWindow(100)
+
+	model:assignWindowToSpace(window, 1)
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
+
+	model:assignWindowToSpace(window, 2)
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 100)
+	lu.assertNil(model:getFocusedWindowForVirtualSpace(2))
+end
+
+function TestSpacesModel:testMoveWindowToVirtualSpaceMovesRegisteredWindow()
+	local model = SpacesModel.new()
+	local window = h.createSimpleWindow(100)
+
+	model:assignWindowToSpace(window, 1)
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
+
+	model:moveWindowToVirtualSpace(100, 2)
+
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 2)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(2), 100)
+	lu.assertEquals(#model:getWindowsInVirtualSpace(1), 0)
+	lu.assertEquals(#model:getWindowsInVirtualSpace(2), 1)
+end
+
+function TestSpacesModel:testMoveWindowToVirtualSpaceMovesTabGroup()
+	local model = SpacesModel.new()
+	local window1 = h.createWindow(100, 2, {x = 0, y = 0, w = 800, h = 600}, "Safari")
+	local window2 = h.createWindow(200, 2, {x = 0, y = 0, w = 800, h = 600}, "Safari")
+
+	model:assignWindowToSpace(window1, 1)
+	model:assignWindowToSpace(window2, 1)
+
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
+	lu.assertEquals(model:getVirtualSpaceForWindow(200), 1)
+
+	model:moveWindowToVirtualSpace(100, 3)
+
+	lu.assertEquals(model:getVirtualSpaceForWindow(100), 3)
+	lu.assertEquals(model:getVirtualSpaceForWindow(200), 3)
+	lu.assertEquals(#model:getWindowsInVirtualSpace(1), 0)
+	lu.assertEquals(#model:getWindowsInVirtualSpace(3), 2)
+end
+
 function TestSpacesModel:testTerminalAppTabsWithSlightlyDifferentYCoordinatesAreGroupedTogether()
 	local model = SpacesModel.new()
 	local window1 = h.createWindow(3426, 1, {x = 155.0, y = 30.0, w = 748.0, h = 879.0}, "Terminal")
@@ -423,11 +470,11 @@ function TestSpacesModel:testUnregisterWindowByIdWithSingleWindow()
 	local window = h.createSimpleWindow(100)
 
 	model:assignWindowToSpace(window, 1)
-	lu.assertNotNil(model._windows[100])
+	lu.assertNotNil(model._windowToGroup[100])
 
 	model:unregisterWindowById(100)
 
-	lu.assertNil(model._windows[100])
+	lu.assertNil(model._windowToGroup[100])
 	lu.assertNil(model:getTabGroupForWindow(100))
 end
 
@@ -445,7 +492,7 @@ function TestSpacesModel:testUnregisterWindowByIdFromTabGroupWithRemainingWindow
 
 	model:unregisterWindowById(100)
 
-	lu.assertNil(model._windows[100])
+	lu.assertNil(model._windowToGroup[100])
 	lu.assertNil(model:getTabGroupForWindow(100))
 
 	local tabGroupAfter = model:getTabGroupForWindow(200)
@@ -466,7 +513,7 @@ function TestSpacesModel:testUnregisterWindowByIdRemovesEmptyTabGroup()
 
 	model:unregisterWindowById(100)
 
-	lu.assertNil(model._windows[100])
+	lu.assertNil(model._windowToGroup[100])
 	lu.assertNil(model:getTabGroupForWindow(100))
 end
 
@@ -475,7 +522,7 @@ function TestSpacesModel:testUnregisterWindowByIdWithNonExistentWindow()
 
 	model:unregisterWindowById(999)
 
-	lu.assertNil(model._windows[999])
+	lu.assertNil(model._windowToGroup[999])
 end
 
 return TestSpacesModel
