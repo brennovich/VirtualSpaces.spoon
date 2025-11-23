@@ -64,10 +64,9 @@ function obj:init()
 	end)
 
 	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
+		local virtualSpace = self.model:getVirtualSpaceForWindow(window:id()) or self.model:getCurrentVirtualSpace()
 		if self._isValidWindowForVirtualSpace(window) then
-			self.model:saveFocusedWindowInVirtualSpace(
-				self.model:getVirtualSpaceForWindow(window:id()) or self.model:getCurrentVirtualSpace(),
-				window:id())
+			self.model:saveFocusedWindowInVirtualSpace(virtualSpace, window:id())
 		end
 	end)
 

@@ -4,93 +4,82 @@ local WindowCache = require('WindowCache')
 
 TestWindowCache = {}
 
-function TestWindowCache:testGet_ReturnsCachedWindow()
-    local cache = WindowCache.new()
-    local mockWindow = {
-        id = function() return 123 end
-    }
-    local windowId = 123
-
-    cache:add(mockWindow)
-    local result = cache:get(windowId)
-
-    lu.assertEquals(result, mockWindow)
-end
-
-function TestWindowCache:testGet_InvalidWindow_ReturnsCachedWindowWithoutValidation()
-    local cache = WindowCache.new()
-    local mockInvalidWindow = {
-        isStandard = function() return false end,
-        id = function() return 123 end
-    }
-    local windowId = 123
-
-    cache:add(mockInvalidWindow)
-    local result = cache:get(windowId)
-
-    lu.assertEquals(result, mockInvalidWindow)
-end
-
-function TestWindowCache:testGet_ErrorAccessingWindow_RemovesFromCacheAndReturnsNil()
-    local cache = WindowCache.new()
+function TestWindowCache:testGetCachedWindow()
     local callCount = 0
-    local mockStaleWindow = {
-        id = function()
-            callCount = callCount + 1
-            if callCount == 1 then
-                return 123
-            end
-            error("window destroyed")
-        end
+    local cases = {
+        {
+            name = "returns cached window",
+            mockWindow = { id = function() return 123 end },
+            expected = 123,
+            remainsInCache = true,
+        },
+        {
+            name = "returns invalid window without validation",
+            mockWindow = {
+                isStandard = function() return false end,
+                id = function() return 123 end
+            },
+            expected = 123,
+            remainsInCache = true,
+        },
+        {
+            name = "returns nil and removes stale window that errors on access",
+            mockWindow = {
+                id = function()
+                    callCount = callCount + 1
+                    if callCount == 1 then return 123 end
+                    error("window destroyed")
+                end
+            },
+            expectedResult = nil,
+            remainsInCache = false,
+        },
     }
-    local windowId = 123
 
-    cache:add(mockStaleWindow)
-    local result = cache:get(windowId)
+    for _, tc in ipairs(cases) do
+        local cache = WindowCache.new()
 
-    lu.assertIsNil(result)
+        cache:add(tc.mockWindow)
+        local result = cache:get(123)
+
+        lu.assertEquals(result and result:id() or nil, tc.expected, tc.name)
+        lu.assertEquals(cache._cache[123] ~= nil, tc.remainsInCache, tc.name .. " - cache state")
+    end
 end
 
-function TestWindowCache:testGet_CacheMiss_CallsWindowGetAndCachesResult()
-    local mockWindow = {
-        id = function() return 123 end
-    }
-    local windowId = 123
+function TestWindowCache:testGetCacheMissCallsWindowGet()
+    local mockWindow = { id = function() return 123 end }
     local windowGetCalled = false
 
     helpers.withHsGlobal({
         window = {
             get = function(id)
                 windowGetCalled = true
-                lu.assertEquals(id, windowId)
+                lu.assertEquals(id, 123)
                 return mockWindow
             end
         }
     }, function()
         local cache = WindowCache.new()
-        local result = cache:get(windowId)
+
+        local result = cache:get(123)
 
         lu.assertTrue(windowGetCalled)
         lu.assertEquals(result, mockWindow)
-
-        local cachedResult = cache._cache[windowId]
-        lu.assertEquals(cachedResult, mockWindow)
+        lu.assertEquals(cache._cache[123], mockWindow)
     end)
 end
 
-function TestWindowCache:testRemove_RemovesWindowFromCache()
+function TestWindowCache:testRemove()
     local cache = WindowCache.new()
-    local mockWindow = {
-        id = function() return 123 end
-    }
-    local windowId = 123
+    local mockWindow = { id = function() return 123 end }
 
     cache:add(mockWindow)
-    lu.assertNotNil(cache._cache[windowId])
+    lu.assertNotNil(cache._cache[123])
 
-    cache:remove(windowId)
+    cache:remove(123)
 
-    lu.assertIsNil(cache._cache[windowId])
+    lu.assertIsNil(cache._cache[123])
 end
 
 return TestWindowCache
