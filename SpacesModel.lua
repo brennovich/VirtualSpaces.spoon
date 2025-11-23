@@ -41,12 +41,9 @@ function SpacesModel:getWindowsInVirtualSpace(virtualSpace)
 end
 
 function SpacesModel:assignWindowToSpace(window, virtualSpace)
-	if not window then
-		return
-	end
+	if not window then return end
 
 	local isNewWindow = not self._windowToGroup[window.id]
-
 	if isNewWindow then
 		local existingGroupId = nil
 
@@ -86,14 +83,14 @@ function SpacesModel:assignWindowToSpace(window, virtualSpace)
 				end
 			end
 		end
-
-		local groupId = self._windowToGroup[window.id]
-		for _, tabWindowId in ipairs(self._groups[groupId].windowIds) do
-			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
-		end
-
-		self:saveFocusedWindowInVirtualSpace(virtualSpace, window.id)
 	end
+
+	local groupId = self._windowToGroup[window.id]
+	for _, tabWindowId in ipairs(self._groups[groupId].windowIds) do
+		self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
+	end
+
+	self:saveFocusedWindowInVirtualSpace(virtualSpace, window.id)
 end
 
 function SpacesModel:moveWindowToVirtualSpace(windowId, virtualSpace)
@@ -162,6 +159,10 @@ function SpacesModel:assignWindowToVirtualSpace(windowId, virtualSpace)
 
 	if previousVirtualSpace == virtualSpace then
 		return
+	end
+
+	if self._focusedWindows[previousVirtualSpace] == windowId then
+		self._focusedWindows[previousVirtualSpace] = nil
 	end
 
 	if previousVirtualSpace then

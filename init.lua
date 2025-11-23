@@ -41,10 +41,7 @@ obj.license = "MIT"
 --- * Implements space watcher to detect manual navigation to storage space
 function obj:init()
 	self._telemetry = Telemetry.new('VirtualSpaces', 'warning')
-
-	self.nativeSpaceManager = NativeSpaceManager.new({
-		telemetry = self._telemetry
-	})
+	self.nativeSpaceManager = NativeSpaceManager.new({telemetry = self._telemetry})
 
 	-- Ensure we have exactly two native spaces on the main screen
 	local activeSpace, storageSpace = self.nativeSpaceManager:setupForMainScreen()
@@ -63,10 +60,6 @@ function obj:init()
 	end
 
 	self.windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
-		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
-	end)
-
-	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
 		self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
 	end)
 
@@ -126,13 +119,6 @@ function obj:switchToVirtualSpace(virtualSpace)
 			return
 		end
 
-		local focusedWin = hs.window.focusedWindow()
-		if focusedWin then
-			self._telemetry:span("saveFocusedWindow", function()
-				self.model:saveFocusedWindowInVirtualSpace(self.model:getCurrentVirtualSpace(), focusedWin:id())
-			end)
-		end
-
 		self:_switchSpaces(virtualSpace, currentNativeSpace)
 		self:_restoreWindowsFocusForVirtualSpace()
 	end)
@@ -165,8 +151,8 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 			or self.nativeSpaceManager:getStorageSpace()
 
 		self._telemetry:span(string.format("moveWindowToSpace(%d)", window:id()), function()
-			self.model:moveWindowToVirtualSpace(window:id(), virtualSpace)
 			hs.spaces.moveWindowToSpace(window, targetNativeSpace)
+			self.model:moveWindowToVirtualSpace(window:id(), virtualSpace)
 		end)
 
 		self:_restoreWindowsFocusForVirtualSpace()
@@ -207,7 +193,7 @@ end
 function obj:_assignWindowToVirtualSpace(window, virtualSpace)
 	if not self:_isValidWindowForVirtualSpace(window) then return end
 
-	return self._telemetry:span("assignWindowToVirtualSpace", function()
+	return self._telemetry:span(string.format("assignWindowToSpace(%d, %d)", window:id(), virtualSpace), function()
 		self.model:assignWindowToSpace(Window.new(window), virtualSpace)
 		self.windowCache:add(window)
 	end)
@@ -232,10 +218,6 @@ function obj:_restoreWindowsFocusForVirtualSpace()
 	end)
 end
 
-function obj:_isValidWindowForVirtualSpace(window)
-	return window and window:isStandard() and not window:isFullScreen()
-end
-
 function obj:_focusWindowById(windowId)
 	local win = self._telemetry:span("windowCache:get()", function()
 		return self.windowCache:get(windowId)
@@ -247,6 +229,10 @@ function obj:_focusWindowById(windowId)
 		return true
 	end
 	return false
+end
+
+function obj:_isValidWindowForVirtualSpace(window)
+	return window and window:isStandard() and not window:isFullScreen()
 end
 
 return obj
