@@ -47,7 +47,7 @@ function WindowsSort:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedW
 
 		for _, winId in ipairs(categorizedWindows.toActive) do
 			if not self:_isWindowInSpace(winId, activeSpace) then
-				self._telemetry:span("windowMoverFn(toActive)", function()
+				self._telemetry:span(string.format("windowMoverFn(%d, toActive)", winId), function()
 					self._windowMoverFn(winId, activeSpace)
 				end)
 			end
@@ -55,7 +55,7 @@ function WindowsSort:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedW
 
 		for _, winId in ipairs(categorizedWindows.toStorage) do
 			if not self:_isWindowInSpace(winId, storageSpace) then
-				self._telemetry:span("windowMoverFn(toStorage)", function()
+				self._telemetry:span(string.format("windowMoverFn(%d, toStorage)", winId), function()
 					self._windowMoverFn(winId, storageSpace)
 				end)
 			end
@@ -64,7 +64,7 @@ function WindowsSort:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedW
 		if nativeSpaceSwitchHappened then
 			for _, winId in ipairs(categorizedWindows.others) do
 				if not self:_isWindowInSpace(winId, storageSpace) then
-					self._telemetry:span("windowMoverFn(others)", function()
+					self._telemetry:span(string.format("windowMoverFn(%d, others)", winId), function()
 						self._windowMoverFn(winId, storageSpace)
 					end)
 				end

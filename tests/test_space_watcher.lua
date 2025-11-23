@@ -8,6 +8,7 @@ function TestSpaceWatcher:setUp()
 	self.spaceWatcherCallback = nil
 	self.focusedWindowValue = nil
 	self.focusCalls = {}
+	self.movedWindows = {}
 
 	self.window1 = {
 		id = function() return 100 end,
@@ -34,7 +35,9 @@ function TestSpaceWatcher:setUp()
 			scriptPath = function() return "./" end
 		},
 		spaces = {
-			moveWindowToSpace = function() end,
+			moveWindowToSpace = function(win, space)
+				table.insert(self.movedWindows, {windowId = win, space = space})
+			end,
 			activeSpaceOnScreen = function()
 				return self.currentSpace
 			end,
@@ -53,9 +56,7 @@ function TestSpaceWatcher:setUp()
 		},
 		screen = {
 			mainScreen = function()
-				return {
-					getUUID = function() return "screen-123" end
-				}
+				return { getUUID = function() return "screen-123" end }
 			end
 		},
 		window = {
@@ -88,21 +89,26 @@ function TestSpaceWatcher:setUp()
 end
 
 function TestSpaceWatcher:testPreservesFocusWhenUserNavigatesViaDockToStorageSpace()
-	self.obj.model:assignWindowToVirtualSpace(100, 1)
-	self.obj.model:assignWindowToVirtualSpace(200, 2)
+	self.obj.model:assignWindowToVirtualSpace(self.window1:id(), 1)
+	self.obj.model:assignWindowToVirtualSpace(self.window2:id(), 2)
+	self.obj.model:assignWindowToVirtualSpace(300, 3)
 	self.obj.model:setCurrentVirtualSpace(1)
 	self.focusedWindowValue = self.window1
-	self.obj.model:saveFocusedWindowInVirtualSpace(1, 100)
+	self.obj.model:saveFocusedWindowInVirtualSpace(1, self.window1:id())
 
 	self.focusedWindowValue = self.window2
-	self.currentSpace = self.spaces.storageSpace
 	self.focusCalls = {}
+	self.movedWindows = {}
 
+	self.currentSpace = 2
 	self.spaceWatcherCallback()
 
 	lu.assertEquals(self.obj.model:getCurrentVirtualSpace(), 2)
-	lu.assertEquals(self.obj.model:getFocusedWindowForVirtualSpace(2), 200)
 	lu.assertEquals(#self.focusCalls, 0)
+	lu.assertEquals(#self.movedWindows, 3)
+	lu.assertEquals(self.movedWindows[1], {windowId = 200, space = 2})
+	lu.assertEquals(self.movedWindows[2], {windowId = 100, space = 1})
+	lu.assertEquals(self.movedWindows[3], {windowId = 300, space = 1})
 end
 
 return TestSpaceWatcher

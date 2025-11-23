@@ -84,18 +84,25 @@ function obj:init()
 		self:_restoreWindowsFocusForVirtualSpace()
 	end)
 
-	self.spaceWatcher = hs.spaces.watcher.new(function(spaceId)
-		if hs.spaces.activeSpaceOnScreen() == self.nativeSpaceManager:getStorageSpace() then
-			local focusedWindow = hs.window.focusedWindow()
-			if not focusedWindow then return end
+	self.spaceWatcher = hs.spaces.watcher.new(function()
+		local spaceId = hs.spaces.activeSpaceOnScreen()
+		self._telemetry:span(string.format("spaceWatcher(%d)", spaceId), function()
+			if spaceId == self.nativeSpaceManager:getStorageSpace() then
+				local win = hs.window.focusedWindow()
+				if not win then return end
 
-			local windowVirtualSpace = self.model:getVirtualSpaceForWindow(focusedWindow:id())
+				local windowVirtualSpace = self.model:getVirtualSpaceForWindow(win:id()) or 1
 
-			if windowVirtualSpace and windowVirtualSpace ~= self.model:getCurrentVirtualSpace() then
-				self.model:setCurrentVirtualSpace(windowVirtualSpace)
-				self.model:saveFocusedWindowInVirtualSpace(windowVirtualSpace, focusedWindow:id())
+				local categorizedWindows = self.model:categorizeWindowsForTransition(
+					windowVirtualSpace, self.model:getCurrentVirtualSpace())
+					local activeSpace, storageSpace = self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
+						categorizedWindows,
+						spaceId
+					)
+					self.nativeSpaceManager:updateSpaces(activeSpace, storageSpace)
+					self.model:setCurrentVirtualSpace(windowVirtualSpace)
 			end
-		end
+		end)
 	end)
 	self.spaceWatcher:start()
 
