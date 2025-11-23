@@ -180,10 +180,7 @@ end
 -- Categorize windows based on their virtual space assignments for transition
 -- between two native spaces.
 function SpacesModel:categorizeWindowsForTransition(targetVirtualSpace, currentVirtualSpace)
-	local toActive = {}
-	local toStorage = {}
-	local others = {}
-
+	local toActive, toStorage = {}, {}
 	for windowId, virtualSpace in pairs(self._windowVirtualSpaceMap) do
 		if virtualSpace == targetVirtualSpace then
 			table.insert(toActive, windowId)
@@ -192,10 +189,7 @@ function SpacesModel:categorizeWindowsForTransition(targetVirtualSpace, currentV
 		end
 	end
 
-	return {
-		toActive = toActive,
-		toStorage = toStorage,
-	}
+	return {toActive = toActive, toStorage = toStorage}
 end
 
 -- Get the current virtual space

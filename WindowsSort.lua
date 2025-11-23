@@ -43,16 +43,7 @@ function WindowsSort:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedW
 end
 
 function WindowsSort:_isWindowInSpace(winId, targetSpaceId)
-	if not self._windowSpaceGetter then
-		return false
-	end
-
-	local spaces = self._windowSpaceGetter(winId)
-	if not spaces then
-		return false
-	end
-
-	for _, spaceId in ipairs(spaces) do
+	for _, spaceId in ipairs(self._windowSpaceGetter(winId) or {}) do
 		if spaceId == targetSpaceId then
 			return true
 		end

@@ -7,6 +7,7 @@ function TestSpaceWatcher:setUp()
 	self.currentSpace = 1
 	self.spaceWatcherCallback = nil
 	self.focusedWindowValue = nil
+	self.windowSpaces = {}
 	self.focusCalls = {}
 	self.movedWindows = {}
 
@@ -47,6 +48,9 @@ function TestSpaceWatcher:setUp()
 			openMissionControl = function() end,
 			removeSpace = function() end,
 			addSpaceToScreen = function() end,
+			windowSpaces = function(win)
+				return self.windowSpaces[win] or {}
+			end,
 			watcher = {
 				new = function(callback)
 					self.spaceWatcherCallback = callback
@@ -93,6 +97,7 @@ function TestSpaceWatcher:testUserNavigatesViaDockToStorageSpace()
 	self.obj.model:assignWindowToVirtualSpace(self.window2:id(), 2)
 	self.obj.model:assignWindowToVirtualSpace(300, 3)
 	self.obj.model:setCurrentVirtualSpace(1)
+
 	self.focusedWindowValue = self.window1
 	self.obj.model:saveFocusedWindowInVirtualSpace(1, self.window1:id())
 
@@ -100,16 +105,20 @@ function TestSpaceWatcher:testUserNavigatesViaDockToStorageSpace()
 	self.focusCalls = {}
 	self.movedWindows = {}
 
+	self.windowSpaces = {
+		[100] = {1},
+		[200] = {2},
+		[300] = {2}
+	}
+
 	self.currentSpace = 2
 	self.spaceWatcherCallback()
 
 	lu.assertEquals(self.obj.model:getCurrentVirtualSpace(), 2)
 	lu.assertEquals(self.obj.model:getFocusedWindowForVirtualSpace(2), nil, "Focus must be saved when switching spaces")
 	lu.assertEquals(#self.focusCalls, 0, "Respect native focus and don't restore previously focused window")
-	lu.assertEquals(#self.movedWindows, 3)
-	lu.assertEquals(self.movedWindows[1], {windowId = 200, space = 2})
-	lu.assertEquals(self.movedWindows[2], {windowId = 300, space = 1})
-	lu.assertEquals(self.movedWindows[3], {windowId = 100, space = 1})
+	lu.assertEquals(#self.movedWindows, 1)
+	lu.assertEquals(self.movedWindows[1], {windowId = 300, space = 1})
 end
 
 return TestSpaceWatcher
