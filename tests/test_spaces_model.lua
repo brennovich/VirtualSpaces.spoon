@@ -519,4 +519,71 @@ function TestSpacesModel:testUnregisterWindowByIdWithNonExistentWindow()
 	lu.assertNil(model._windowToGroup[999])
 end
 
+function TestSpacesModel:testEligibleWindowToBeFocused()
+	local cases = {
+		{
+			name = "returns saved focused window when still in current virtual space",
+			targetSpace = 1,
+			setup = function(model)
+				model:assignWindowToVirtualSpace(100, 1)
+				lu.assertNil(model:getFocusedWindowForVirtualSpace(1))
+			end,
+			expectedWindowId = 100,
+			expectedFocusedWindowId = 100,
+		},
+		{
+			name = "returns first window when no saved focus",
+			targetSpace = 1,
+			setup = function(model)
+				model:assignWindowToVirtualSpace(100, 1)
+				model:assignWindowToVirtualSpace(200, 1)
+				lu.assertNil(model:getFocusedWindowForVirtualSpace(1))
+			end,
+			expectedWindowId = 100,
+			expectedFocusedWindowId = 100,
+		},
+		{
+			name = "returns first window when saved focus is in different virtual space",
+			targetSpace = 1,
+			setup = function(model)
+				model:assignWindowToVirtualSpace(100, 1)
+				model:assignWindowToVirtualSpace(200, 2)
+				lu.assertNil(model:getFocusedWindowForVirtualSpace(1))
+				model:saveFocusedWindowInVirtualSpace(1, 200)
+			end,
+			expectedWindowId = 100,
+			expectedFocusedWindowId = 100,
+		},
+		{
+			name = "returns nil when no windows in virtual space",
+			targetSpace = 1,
+			setup = function(_)end,
+			expectedWindowId = nil,
+			expectedFocusedWindowId = nil,
+		},
+		{
+			name = "returns nil when windows exist but in other virtual spaces",
+			targetSpace = 1,
+			setup = function(model)
+				model:assignWindowToVirtualSpace(100, 2)
+				model:setCurrentVirtualSpace(1)
+			end,
+			expectedWindowId = nil,
+			expectedFocusedWindowId = nil,
+		},
+	}
+
+	for _, tc in ipairs(cases) do
+		local model = SpacesModel.new()
+
+		tc.setup(model)
+		model:setCurrentVirtualSpace(tc.targetSpace)
+
+		local windowId = model:prepareWindownToBeFocusedOnCurrentVirtualSpace()
+
+		lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), tc.expectedFocusedWindowId, tc.name)
+		lu.assertEquals(windowId, tc.expectedWindowId, tc.name)
+	end
+end
+
 return TestSpacesModel

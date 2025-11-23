@@ -227,6 +227,23 @@ function SpacesModel:getTabSiblingsBeforeDestruction(windowId)
 	return #siblings > 0 and siblings or nil
 end
 
+function SpacesModel:prepareWindownToBeFocusedOnCurrentVirtualSpace()
+	local currentVirtualSpace = self._currentVirtualSpace
+	local savedWindowId = self._focusedWindows[currentVirtualSpace]
+
+	if savedWindowId and self._windowVirtualSpaceMap[savedWindowId] == currentVirtualSpace then
+		return savedWindowId
+	end
+
+	local windows = self._virtualSpaceWindowsMap[currentVirtualSpace] or {}
+	if #windows > 0 then
+		self:saveFocusedWindowInVirtualSpace(currentVirtualSpace, windows[1])
+		return windows[1]
+	end
+
+	return nil
+end
+
 function SpacesModel:_removeWindowFromList(virtualSpace, windowId)
 	local windows = self._virtualSpaceWindowsMap[virtualSpace]
 	if not windows then return end
