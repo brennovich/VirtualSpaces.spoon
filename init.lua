@@ -57,11 +57,6 @@ function obj:init()
 	self.windowCache = WindowCache.new(self._telemetry)
 	self.windowFilter = hs.window.filter.new()
 
-	-- This filter is unused but it seems to help address this bug:
-	-- https://github.com/Hammerspoon/hammerspoon/issues/3276
-	self.windowFilterOther = hs.window.filter.new()
-	self.windowFilterOther:setCurrentSpace(true)
-
 	-- On first load, assign all existing windows to virtual space 1
 	for _, win in ipairs(hs.window.allWindows()) do
 		self:_assignWindowToVirtualSpace(win, 1)
