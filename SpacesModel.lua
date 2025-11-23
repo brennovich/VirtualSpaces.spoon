@@ -186,17 +186,14 @@ function SpacesModel:categorizeWindowsForTransition(targetVirtualSpace, currentV
 	for windowId, virtualSpace in pairs(self._windowVirtualSpaceMap) do
 		if virtualSpace == targetVirtualSpace then
 			table.insert(toActive, windowId)
-		elseif virtualSpace == currentVirtualSpace then
-			table.insert(toStorage, windowId)
 		else
-			table.insert(others, windowId)
+			table.insert(toStorage, windowId)
 		end
 	end
 
 	return {
 		toActive = toActive,
 		toStorage = toStorage,
-		others = others
 	}
 end
 

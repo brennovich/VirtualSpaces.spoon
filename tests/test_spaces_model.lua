@@ -259,7 +259,6 @@ function TestSpacesModel:testCategorizeWindowsWithNoWindows()
 
 	lu.assertEquals(#result.toActive, 0)
 	lu.assertEquals(#result.toStorage, 0)
-	lu.assertEquals(#result.others, 0)
 end
 
 function TestSpacesModel:testCategorizeWindowsWithOnlyTargetSpaceWindows()
@@ -274,7 +273,6 @@ function TestSpacesModel:testCategorizeWindowsWithOnlyTargetSpaceWindows()
 	lu.assertTrue(table.contains(result.toActive, 100))
 	lu.assertTrue(table.contains(result.toActive, 200))
 	lu.assertEquals(#result.toStorage, 0)
-	lu.assertEquals(#result.others, 0)
 end
 
 function TestSpacesModel:testCategorizeWindowsWithOnlyCurrentSpaceWindows()
@@ -289,7 +287,7 @@ function TestSpacesModel:testCategorizeWindowsWithOnlyCurrentSpaceWindows()
 	lu.assertEquals(#result.toStorage, 2)
 	lu.assertTrue(table.contains(result.toStorage, 100))
 	lu.assertTrue(table.contains(result.toStorage, 200))
-	lu.assertEquals(#result.others, 0)
+	lu.assertEquals(#result.toStorage, 2)
 end
 
 function TestSpacesModel:testCategorizeWindowsWithBothSpaces()
@@ -306,7 +304,6 @@ function TestSpacesModel:testCategorizeWindowsWithBothSpaces()
 	lu.assertEquals(#result.toStorage, 2)
 	lu.assertTrue(table.contains(result.toStorage, 100))
 	lu.assertTrue(table.contains(result.toStorage, 300))
-	lu.assertEquals(#result.others, 0)
 end
 
 function TestSpacesModel:testCategorizeWindowsWithOtherSpaces()
@@ -318,10 +315,9 @@ function TestSpacesModel:testCategorizeWindowsWithOtherSpaces()
 	local result = model:categorizeWindowsForTransition(2, 1)
 
 	lu.assertEquals(#result.toActive, 0)
-	lu.assertEquals(#result.toStorage, 0)
-	lu.assertEquals(#result.others, 2)
-	lu.assertTrue(table.contains(result.others, 100))
-	lu.assertTrue(table.contains(result.others, 200))
+	lu.assertEquals(#result.toStorage, 2)
+	lu.assertTrue(table.contains(result.toStorage, 100))
+	lu.assertTrue(table.contains(result.toStorage, 200))
 end
 
 function TestSpacesModel:testCategorizeWindowsWithAllThreeCategories()
@@ -336,11 +332,10 @@ function TestSpacesModel:testCategorizeWindowsWithAllThreeCategories()
 
 	lu.assertEquals(#result.toActive, 1)
 	lu.assertTrue(table.contains(result.toActive, 200))
-	lu.assertEquals(#result.toStorage, 2)
+	lu.assertEquals(#result.toStorage, 3)
 	lu.assertTrue(table.contains(result.toStorage, 100))
+	lu.assertTrue(table.contains(result.toStorage, 300))
 	lu.assertTrue(table.contains(result.toStorage, 400))
-	lu.assertEquals(#result.others, 1)
-	lu.assertTrue(table.contains(result.others, 300))
 end
 
 function TestSpacesModel:testCategorizeWindowsWhenTargetEqualsCurrentSpace()
@@ -355,9 +350,8 @@ function TestSpacesModel:testCategorizeWindowsWhenTargetEqualsCurrentSpace()
 	lu.assertEquals(#result.toActive, 2)
 	lu.assertTrue(table.contains(result.toActive, 100))
 	lu.assertTrue(table.contains(result.toActive, 200))
-	lu.assertEquals(#result.toStorage, 0)
-	lu.assertEquals(#result.others, 1)
-	lu.assertTrue(table.contains(result.others, 300))
+	lu.assertEquals(#result.toStorage, 1)
+	lu.assertTrue(table.contains(result.toStorage, 300))
 end
 
 function TestSpacesModel:testAssignWindowWithNilWindowId()

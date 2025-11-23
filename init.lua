@@ -86,6 +86,7 @@ function obj:init()
 
 	self.spaceWatcher = hs.spaces.watcher.new(function()
 		local spaceId = hs.spaces.activeSpaceOnScreen()
+
 		self._telemetry:span(string.format("spaceWatcher(%d)", spaceId), function()
 			if spaceId == self.nativeSpaceManager:getStorageSpace() then
 				local win = hs.window.focusedWindow()
@@ -93,14 +94,7 @@ function obj:init()
 
 				local windowVirtualSpace = self.model:getVirtualSpaceForWindow(win:id()) or 1
 
-				local categorizedWindows = self.model:categorizeWindowsForTransition(
-					windowVirtualSpace, self.model:getCurrentVirtualSpace())
-					local activeSpace, storageSpace = self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
-						categorizedWindows,
-						spaceId
-					)
-					self.nativeSpaceManager:updateSpaces(activeSpace, storageSpace)
-					self.model:setCurrentVirtualSpace(windowVirtualSpace)
+				self:_switchSpaces(windowVirtualSpace, spaceId)
 			end
 		end)
 	end)
@@ -131,9 +125,9 @@ function obj:switchToVirtualSpace(virtualSpace)
 	end
 
 	return self._telemetry:span(string.format("switchToVirtualSpace(%d)", virtualSpace), function()
-		local currentSpace = hs.spaces.activeSpaceOnScreen()
+		local currentNativeSpace = hs.spaces.activeSpaceOnScreen()
 
-		if virtualSpace == self.model:getCurrentVirtualSpace() and currentSpace == self.nativeSpaceManager:getActiveSpace() then
+		if virtualSpace == self.model:getCurrentVirtualSpace() and currentNativeSpace == self.nativeSpaceManager:getActiveSpace() then
 			return
 		end
 
@@ -144,14 +138,7 @@ function obj:switchToVirtualSpace(virtualSpace)
 			end)
 		end
 
-		local categorizedWindows = self.model:categorizeWindowsForTransition(virtualSpace, self.model:getCurrentVirtualSpace())
-		local activeSpace, storageSpace = self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
-			categorizedWindows,
-			currentSpace
-		)
-		self.nativeSpaceManager:updateSpaces(activeSpace, storageSpace)
-		self.model:setCurrentVirtualSpace(virtualSpace)
-
+		self:_switchSpaces(virtualSpace, currentNativeSpace)
 		self:_restoreWindowsFocusForVirtualSpace()
 	end)
 end
@@ -208,6 +195,18 @@ end
 --- * 'debug' level: logs both operation names and timing metrics
 function obj:instrument(logLevel)
 	self._telemetry:setLogLevel(logLevel)
+end
+
+function obj:_switchSpaces(virtualSpace, currentNativeSpace)
+	self.nativeSpaceManager:updateSpaces(
+		self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
+			self.model:categorizeWindowsForTransition(
+				virtualSpace, self.model:getCurrentVirtualSpace()
+			),
+			currentNativeSpace
+		)
+	)
+	self.model:setCurrentVirtualSpace(virtualSpace)
 end
 
 function obj:_assignWindowToVirtualSpace(window, virtualSpace)

@@ -36,7 +36,6 @@ function TestWindowsSort:testMovesTargetVirtualSpaceWindowsToActiveSpace()
 	local categorizedWindows = {
 		toActive = {200, 300},
 		toStorage = {100},
-		others = {}
 	}
 
 	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "active-123")
@@ -57,7 +56,6 @@ function TestWindowsSort:testMovesCurrentVirtualSpaceWindowsToStorageSpace()
 	local categorizedWindows = {
 		toActive = {200},
 		toStorage = {100},
-		others = {}
 	}
 
 	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "active-123")
@@ -76,7 +74,6 @@ function TestWindowsSort:testSwapsSpacesWhenCurrentNativeSpaceIsStorage()
 	local categorizedWindows = {
 		toActive = {200},
 		toStorage = {100},
-		others = {}
 	}
 
 	local newActive, newStorage = sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
@@ -87,22 +84,24 @@ function TestWindowsSort:testSwapsSpacesWhenCurrentNativeSpaceIsStorage()
 	lu.assertEquals(newStorage, "active-123")
 end
 
-function TestWindowsSort:testMovesOtherWindowsToStorageWhenSwapping()
+function TestWindowsSort:testMovesWindowsToFormarActiveSpaceWhenSwapping()
 	local tracker = helpers.createMoveTracker()
 	local sorter = WindowsSort.new("active-123", "storage-456", helpers.createBasicDeps({windowMoverFn = tracker.record}))
 
 	local categorizedWindows = {
 		toActive = {200},
-		toStorage = {100},
-		others = {300}
+		toStorage = {100, 300},
 	}
 
 	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "storage-456")
 
 	local win3Move = tracker.findMove(300)
+	local win1Move = tracker.findMove(100)
 
 	lu.assertNotNil(win3Move)
 	lu.assertEquals(win3Move.spaceId, "active-123")
+	lu.assertNotNil(win1Move)
+	lu.assertEquals(win1Move.spaceId, "active-123")
 end
 
 function TestWindowsSort:testDoesNotSwapWhenCurrentNativeSpaceIsActive()
@@ -113,7 +112,6 @@ function TestWindowsSort:testDoesNotSwapWhenCurrentNativeSpaceIsActive()
 	local categorizedWindows = {
 		toActive = {},
 		toStorage = {},
-		others = {}
 	}
 
 	local newActive, newStorage = sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
@@ -131,7 +129,6 @@ function TestWindowsSort:testHandlesEmptyWindowMap()
 	local categorizedWindows = {
 		toActive = {},
 		toStorage = {},
-		others = {}
 	}
 
 	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "active-123")
@@ -147,7 +144,6 @@ function TestWindowsSort:testPersistsSwappedSpacesInInstance()
 	local categorizedWindows = {
 		toActive = {},
 		toStorage = {},
-		others = {}
 	}
 
 	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "storage-456")
@@ -160,9 +156,9 @@ function TestWindowsSort:testSkipsWindowMoveWhenWindowAlreadyInTargetSpace()
 	local tracker = helpers.createMoveTracker()
 
 	local mockSpaceGetter = function(winId)
-		if winId == "win2" then
+		if winId == 200 then
 			return {"active-123"}
-		elseif winId == "win1" then
+		elseif winId == 100 then
 			return {"storage-456"}
 		end
 		return {}
@@ -174,9 +170,8 @@ function TestWindowsSort:testSkipsWindowMoveWhenWindowAlreadyInTargetSpace()
 	})
 
 	local categorizedWindows = {
-		toActive = {"win2"},
-		toStorage = {"win1"},
-		others = {}
+		toActive = {200},
+		toStorage = {100},
 	}
 
 	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "active-123")
@@ -202,7 +197,6 @@ function TestWindowsSort:testMovesWindowWhenWindowNotInTargetSpace()
 	local categorizedWindows = {
 		toActive = {200},
 		toStorage = {},
-		others = {}
 	}
 
 	sorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(categorizedWindows, "active-123")
