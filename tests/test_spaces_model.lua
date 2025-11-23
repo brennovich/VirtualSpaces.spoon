@@ -393,17 +393,17 @@ function TestSpacesModel:testAssignWindowToSpaceWithTabbedWindows()
 	lu.assertEquals(model:getFocusedWindowForVirtualSpace(2), 200)
 end
 
-function TestSpacesModel:testAssignWindowToSpaceDoesNotReassignRegisteredWindow()
+function TestSpacesModel:testAssignWindowToSpaceClearsFocusedWindowAndVirtualSpaceEntry()
 	local model = SpacesModel.new()
 	local window = h.createSimpleWindow(100)
 
 	model:assignWindowToSpace(window, 1)
-	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
+	lu.assertEquals(model:getVirtualSpaceForWindow(window.id), 1)
 
 	model:assignWindowToSpace(window, 2)
-	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
-	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 100)
-	lu.assertNil(model:getFocusedWindowForVirtualSpace(2))
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(2), window.id)
+	lu.assertNil(model:getFocusedWindowForVirtualSpace(1))
+	lu.assertEquals(model:getVirtualSpaceForWindow(window.id), 2)
 end
 
 function TestSpacesModel:testMoveWindowToVirtualSpaceMovesRegisteredWindow()
