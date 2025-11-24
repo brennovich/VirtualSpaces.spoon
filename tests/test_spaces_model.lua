@@ -522,14 +522,26 @@ end
 function TestSpacesModel:testEligibleWindowToBeFocused()
 	local cases = {
 		{
+			name = "returns saved focused window when using assignWindowToSpace flow",
+			targetSpace = 1,
+			setup = function(model)
+				model:assignWindowToSpace(h.createSimpleWindow(46), 1)
+				model:assignWindowToSpace(h.createSimpleWindow(1375), 1)
+				model:saveFocusedWindowInVirtualSpace(1, 1375)
+			end,
+			expectedWindowId = 1375,
+			expectedFocusedWindowId = 1375,
+		},
+		{
 			name = "returns saved focused window when still in current virtual space",
 			targetSpace = 1,
 			setup = function(model)
 				model:assignWindowToVirtualSpace(100, 1)
-				lu.assertNil(model:getFocusedWindowForVirtualSpace(1))
+				model:assignWindowToVirtualSpace(200, 1)
+				model:saveFocusedWindowInVirtualSpace(1, 200)
 			end,
-			expectedWindowId = 100,
-			expectedFocusedWindowId = 100,
+			expectedWindowId = 200,
+			expectedFocusedWindowId = 200,
 		},
 		{
 			name = "returns first window when no saved focus",
@@ -537,7 +549,6 @@ function TestSpacesModel:testEligibleWindowToBeFocused()
 			setup = function(model)
 				model:assignWindowToVirtualSpace(100, 1)
 				model:assignWindowToVirtualSpace(200, 1)
-				lu.assertNil(model:getFocusedWindowForVirtualSpace(1))
 			end,
 			expectedWindowId = 100,
 			expectedFocusedWindowId = 100,

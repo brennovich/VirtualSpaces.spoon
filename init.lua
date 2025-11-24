@@ -54,7 +54,6 @@ function obj:init()
 	self.windowCache = WindowCache.new(self._telemetry)
 	self.windowFilter = hs.window.filter.new()
 
-	-- On first load, assign all existing windows to virtual space 1
 	for _, win in ipairs(hs.window.allWindows()) do
 		self:_assignWindowToVirtualSpace(win, 1)
 	end
@@ -65,7 +64,7 @@ function obj:init()
 
 	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
 		local virtualSpace = self.model:getVirtualSpaceForWindow(window:id()) or self.model:getCurrentVirtualSpace()
-		if self._isValidWindowForVirtualSpace(window) then
+		if self:_isValidWindowForVirtualSpace(window) then
 			self.model:saveFocusedWindowInVirtualSpace(virtualSpace, window:id())
 		end
 	end)
