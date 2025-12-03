@@ -21,13 +21,30 @@ function SpacesModel.new()
 end
 
 -- Save the focused window for a given virtual space
+-- Maintains a focus history stack where the most recently focused window is at index 1
 function SpacesModel:saveFocusedWindowInVirtualSpace(virtualSpace, windowId)
-	self._focusedWindows[virtualSpace] = windowId
+	if not windowId then return end
+
+	if not self._focusedWindows[virtualSpace] then
+		self._focusedWindows[virtualSpace] = {}
+	end
+
+	local focusHistory = self._focusedWindows[virtualSpace]
+	for i, wId in ipairs(focusHistory) do
+		if wId == windowId then
+			table.remove(focusHistory, i)
+			break
+		end
+	end
+
+	table.insert(focusHistory, 1, windowId)
 end
 
 -- Get the focused window for a given virtual space
+-- Returns the most recently focused window (first in the focus history stack)
 function SpacesModel:getFocusedWindowForVirtualSpace(virtualSpace)
-	return self._focusedWindows[virtualSpace]
+	local focusHistory = self._focusedWindows[virtualSpace]
+	return focusHistory and focusHistory[1] or nil
 end
 
 -- Get the virtual space assigned to a window
@@ -140,12 +157,9 @@ function SpacesModel:unregisterWindowById(windowId)
 
 	if virtualSpace then
 		self:_removeWindowFromList(virtualSpace, windowId)
-
-		if self._focusedWindows[virtualSpace] == windowId then
-			self._focusedWindows[virtualSpace] = nil
-		end
 	end
 
+	self:_removeWindowFromFocusHistory(windowId)
 	self._windowVirtualSpaceMap[windowId] = nil
 end
 
@@ -161,12 +175,18 @@ function SpacesModel:assignWindowToVirtualSpace(windowId, virtualSpace)
 		return
 	end
 
-	if self._focusedWindows[previousVirtualSpace] == windowId then
-		self._focusedWindows[previousVirtualSpace] = nil
-	end
-
 	if previousVirtualSpace then
 		self:_removeWindowFromList(previousVirtualSpace, windowId)
+		-- Remove from previous virtual space's focus history
+		local focusHistory = self._focusedWindows[previousVirtualSpace]
+		if focusHistory then
+			for i, wId in ipairs(focusHistory) do
+				if wId == windowId then
+					table.remove(focusHistory, i)
+					break
+				end
+			end
+		end
 	end
 
 	if not self._virtualSpaceWindowsMap[virtualSpace] then
@@ -229,10 +249,14 @@ end
 
 function SpacesModel:prepareWindownToBeFocusedOnCurrentVirtualSpace()
 	local currentVirtualSpace = self._currentVirtualSpace
-	local savedWindowId = self._focusedWindows[currentVirtualSpace]
+	local focusHistory = self._focusedWindows[currentVirtualSpace]
 
-	if savedWindowId and self._windowVirtualSpaceMap[savedWindowId] == currentVirtualSpace then
-		return savedWindowId
+	if focusHistory then
+		for _, windowId in ipairs(focusHistory) do
+			if self._windowVirtualSpaceMap[windowId] == currentVirtualSpace then
+				return windowId
+			end
+		end
 	end
 
 	local windows = self._virtualSpaceWindowsMap[currentVirtualSpace] or {}
@@ -252,6 +276,18 @@ function SpacesModel:_removeWindowFromList(virtualSpace, windowId)
 		if wId == windowId then
 			table.remove(windows, i)
 			return
+		end
+	end
+end
+
+-- Remove a window from all virtual space focus histories
+function SpacesModel:_removeWindowFromFocusHistory(windowId)
+	for virtualSpace, focusHistory in pairs(self._focusedWindows) do
+		for i, wId in ipairs(focusHistory) do
+			if wId == windowId then
+				table.remove(focusHistory, i)
+				break
+			end
 		end
 	end
 end

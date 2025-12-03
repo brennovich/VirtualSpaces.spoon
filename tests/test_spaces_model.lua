@@ -252,6 +252,61 @@ function TestSpacesModel:testRemoveWindowDoesNotAffectFocusedWindowInOtherSpaces
 	lu.assertEquals(model:getFocusedWindowForVirtualSpace(2), 200)
 end
 
+function TestSpacesModel:testFocusHistoryMaintainsOrder()
+	local model = SpacesModel.new()
+
+	model:assignWindowToVirtualSpace(100, 1)
+	model:assignWindowToVirtualSpace(200, 1)
+	model:assignWindowToVirtualSpace(300, 1)
+
+	model:saveFocusedWindowInVirtualSpace(1, 100)
+	model:saveFocusedWindowInVirtualSpace(1, 200)
+	model:saveFocusedWindowInVirtualSpace(1, 300)
+
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 300)
+
+	model:unregisterWindowById(300)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 200)
+
+	model:unregisterWindowById(200)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 100)
+end
+
+function TestSpacesModel:testFocusHistoryNoDuplicates()
+	local model = SpacesModel.new()
+
+	model:assignWindowToVirtualSpace(100, 1)
+	model:assignWindowToVirtualSpace(200, 1)
+
+	model:saveFocusedWindowInVirtualSpace(1, 100)
+	model:saveFocusedWindowInVirtualSpace(1, 200)
+	model:saveFocusedWindowInVirtualSpace(1, 100) 
+
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 100)
+
+	model:unregisterWindowById(100)
+	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 200)
+end
+
+function TestSpacesModel:testPrepareWindowSkipsInvalidWindowsInHistory()
+	local model = SpacesModel.new()
+
+	model:assignWindowToVirtualSpace(100, 1)
+	model:assignWindowToVirtualSpace(200, 1)
+	model:assignWindowToVirtualSpace(300, 1)
+
+	model:saveFocusedWindowInVirtualSpace(1, 100)
+	model:saveFocusedWindowInVirtualSpace(1, 200)
+	model:saveFocusedWindowInVirtualSpace(1, 300)
+
+	model:assignWindowToVirtualSpace(300, 2)
+
+	model:setCurrentVirtualSpace(1)
+
+	local windowId = model:prepareWindownToBeFocusedOnCurrentVirtualSpace()
+	lu.assertEquals(windowId, 200)
+end
+
 function TestSpacesModel:testCategorizeWindowsWithNoWindows()
 	local model = SpacesModel.new()
 
