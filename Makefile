@@ -1,4 +1,4 @@
-.PHONY: test test/acceptance install-deps install
+.PHONY: test test/acceptance dependencies install
 build: docs.json
 	rm -rf release/*
 	mkdir -p release/VirtualSpaces.spoon
@@ -17,7 +17,7 @@ docs.json: init.lua
 	hs -c "hs.doc.builder.genJSON(\"$$(pwd)/.tmp\")" | grep -v "^--" > $@
 	rm -rf .tmp
 
-install-deps:
+dependencies:
 	luarocks install --local --only-deps virtualspaces-1.0-1.rockspec
 	luarocks install --local luaunit
 

@@ -3,7 +3,7 @@ package = "VirtualSpaces"
 version = "1.0-1"
 
 source = {
-   url = "."
+   url = "https://github.com/brennovich/VirtualSpaces.spoon/releases/latest/download/VirtualSpaces.spoon.zip"
 }
 
 description = {
@@ -12,7 +12,7 @@ description = {
       VirtualSpaces provides i3-like virtual workspace functionality for macOS using Hammerspoon.
       It manages window placement across multiple virtual workspaces using macOS Spaces.
    ]],
-   homepage = "https://github.com/brnnc/my-favorite-things",
+   homepage = "https://github.com/brennovich/VirtualSpaces.spoon",
    license = "MIT"
 }
 
