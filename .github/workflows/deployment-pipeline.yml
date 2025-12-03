@@ -20,8 +20,8 @@ jobs:
         with:
           luaVersion: '5.4'
       - uses: leafo/gh-actions-luarocks@v4
-      - id: install-deps
-        run: make install-deps
+      - id: install-dependencies
+        run: make dependencies
       - id: test
         run: make test
       - id: install-hammerspoon
