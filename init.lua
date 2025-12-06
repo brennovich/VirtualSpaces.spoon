@@ -163,6 +163,35 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 	end)
 end
 
+--- VirtualSpaces:getWindowsForCurrentVirtualSpace()
+--- Method
+--- Returns all windows in the current virtual space as window objects
+---
+--- Parameters:
+--- * None
+---
+--- Returns:
+--- * Array of hs.window objects for the current virtual space
+---
+--- Notes:
+--- * Filters out destroyed/invalid windows
+--- * Returns empty array if no windows in current space
+--- * Used by WMUtils.spoon for tiling integration
+function obj:getWindowsForCurrentVirtualSpace()
+	local currentSpace = self.model:getCurrentVirtualSpace()
+	local windowIds = self.model:getWindowsInVirtualSpace(currentSpace)
+	local windows = {}
+
+	for _, windowId in ipairs(windowIds) do
+		local win = self.windowCache:get(windowId)
+		if win then
+			table.insert(windows, win)
+		end
+	end
+
+	return windows
+end
+
 --- VirtualSpaces:instrument(logLevel)
 --- Method
 --- Sets the instrumentation log level to control logging behavior.

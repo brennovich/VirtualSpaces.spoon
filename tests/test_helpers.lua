@@ -60,6 +60,19 @@ function TestHelpers.createWindow(id, tabCount, frame, appName)
 	}
 end
 
+function TestHelpers.createHsWindow(id, appName)
+	return {
+		id = function() return id end,
+		isStandard = function() return true end,
+		isFullScreen = function() return false end,
+		isMinimized = function() return false end,
+		focus = function() end,
+		tabCount = function() return 1 end,
+		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		application = function() return {name = function() return appName end} end
+	}
+end
+
 function TestHelpers.createSimpleWindow(id)
 	return TestHelpers.createWindow(id, 1, {x = 0, y = 0, w = 800, h = 600}, "TestApp")
 end
