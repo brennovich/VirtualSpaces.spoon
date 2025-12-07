@@ -21,6 +21,24 @@ eval $(luarocks --local path) && lua tests/test.lua -o TAP
 
 # Without TAP output
 lua tests/test.lua
+
+# Run acceptance tests
+make test/acceptance
+```
+
+### Building and Installation
+```bash
+# Install dependencies
+make dependencies
+
+# Build the spoon (creates release/VirtualSpaces.spoon.zip)
+make build
+
+# Build and install to ~/.hammerspoon/Spoons (sets debug telemetry level)
+make install
+
+# Generate documentation JSON
+make docs.json
 ```
 
 ### Testing Individual Modules
@@ -28,9 +46,12 @@ Tests are organized by module in `tests/`. Each test file can be run independent
 - `tests/test_windows_sort.lua` - WindowsSort logic
 - `tests/test_spaces_model.lua` - SpacesModel state management
 - `tests/test_native_space_manager.lua` - NativeSpaceManager setup
-- `tests/test_virtual_spaces.lua` - Main integration tests
+- `tests/test_move_window_to_virtual_space.lua` - Window movement tests
+- `tests/test_space_watcher.lua` - Space watcher behavior
 - `tests/test_telemetry.lua` - Telemetry/instrumentation tests
 - `tests/test_window_cache.lua` - WindowCache caching logic
+- `tests/test_get_windows_api.lua` - Public API for getting windows
+- `tests/test_public_api.lua` - Public API tests
 
 ### Development
 This is a Hammerspoon Spoon. Load it in Hammerspoon with:
@@ -135,7 +156,35 @@ Orchestrates all components:
 - Sets up window filters for automatic window assignment
 - Implements space watcher to detect manual navigation to storage space
 - Handles tabbed window groups: when moving a window, all tabs in the group move together
-- Provides public API: `switchToVirtualSpace()`, `moveWindowToVirtualSpace()`, `instrument()`
+- Provides public API:
+  - `switchToVirtualSpace(virtualSpace)` - Switch to a virtual workspace
+  - `moveWindowToVirtualSpace(window, virtualSpace)` - Move window to workspace
+  - `getWindowsForCurrentVirtualSpace()` - Get all windows in current space
+  - `getCurrentVirtualSpace()` - Get current virtual space ID
+  - `getCurrentVirtualSpaceMetadata()` - Get detailed metadata for current space
+  - `subscribe(eventType, callback)` - Subscribe to events
+  - `unsubscribe(eventType, callback)` - Unsubscribe from events
+  - `instrument(logLevel)` - Set telemetry log level
+
+### Public API and Event System
+
+The spoon exposes a public API for extensibility:
+
+**Query Methods:**
+- `getCurrentVirtualSpace()` - Returns current space ID (1-4)
+- `getCurrentVirtualSpaceMetadata()` - Returns table with `id`, `windowCount`, `windows`, `focusedWindow`
+- `getWindowsForCurrentVirtualSpace()` - Returns array of window objects in current space
+
+**Event Subscription:**
+- `subscribe(eventType, callback)` - Register callback for events (returns self for chaining)
+- `unsubscribe(eventType, callback)` - Unregister callback (returns self for chaining)
+- Event types: `"virtualSpaceChanged"`
+- Event data structure: `{eventType, currentSpace: {id, windowCount, windows, focusedWindow}}`
+
+**Error Handling:**
+- Subscriber callbacks wrapped in `pcall()` to prevent breaking event dispatch
+- Invalid event types log warnings via `hs.logger`
+- Invalid callbacks (non-functions) log errors
 
 ### Data Flow
 
@@ -193,6 +242,31 @@ end
 
 Mock Hammerspoon APIs by injecting functions/objects into constructors (see `NativeSpaceManager.new()` parameters).
 
+### Test Helpers
+
+`tests/test_helpers.lua` provides utilities for test setup:
+
+**`createHsGlobal(overrides)`** - Creates standardized `_G.hs` mock with sensible defaults:
+- Accepts `overrides` table to customize specific behaviors
+- Provides default implementations for all Hammerspoon APIs
+- Key override parameters:
+  - `spaces` - Table with `{activeSpace, storageSpace}` IDs
+  - `movedWindows` - Array to track window movements
+  - `mockWindows` - Table mapping window IDs to mock window objects
+  - `focusedWindow` - Function returning currently focused window
+  - `windowGet` - Function to get window by ID
+  - `moveWindowToSpace` - Custom window mover function
+  - `activeSpaceOnScreen` - Function returning current active space
+  - `windowSpaces` - Function returning spaces for a window
+  - `watcher` - Custom space watcher implementation
+  - `loggerNew` - Custom logger factory
+
+**`createHsWindow(id, appName)`** - Creates mock Hammerspoon window object with standard methods
+
+**`createWindow(id, tabCount, frame, appName)`** - Creates window metadata for SpacesModel
+
+**`withHsGlobal(hsConfig, fn)`** - Temporarily sets `_G.hs` for test execution
+
 ### Telemetry in Tests
 
 Components accept an optional `telemetry` parameter in their constructors:
@@ -202,7 +276,9 @@ Components accept an optional `telemetry` parameter in their constructors:
 
 ## Key Constraints
 
+- **Does not support macOS Sequoia** - Due to [Hammerspoon issue #3698](https://github.com/Hammerspoon/hammerspoon/issues/3698), the spoon relies heavily on `hs.spaces.moveWindowToSpace` which is broken on Sequoia
 - Only standard windows are managed (fullscreen windows excluded)
 - Window identification uses numeric window IDs (`window:id()`)
 - Requires exactly two native macOS spaces to function
-- All operations target main screen only
+- All operations target main screen only (multi-screen support may be added in the future)
+- Native focus events (Dock clicks, cmd+tab) trigger macOS space transitions - recommend setting Reduce Motion in System Preferences > Accessibility > Display

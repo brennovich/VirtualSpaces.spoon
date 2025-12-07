@@ -3,6 +3,8 @@ local lu = require('luaunit')
 TestSpaceWatcher = {}
 
 function TestSpaceWatcher:setUp()
+	local helpers = require('tests/test_helpers')
+
 	self.spaces = {activeSpace = 1, storageSpace = 2}
 	self.currentSpace = 1
 	self.spaceWatcherCallback = nil
@@ -31,60 +33,32 @@ function TestSpaceWatcher:setUp()
 		end
 	}
 
-	_G.hs = {
-		spoons = {
-			scriptPath = function() return "./" end
-		},
-		spaces = {
-			moveWindowToSpace = function(win, space)
-				table.insert(self.movedWindows, {windowId = win, space = space})
-			end,
-			activeSpaceOnScreen = function()
-				return self.currentSpace
-			end,
-			allSpaces = function()
-				return {["screen-123"] = {self.spaces.activeSpace, self.spaces.storageSpace}}
-			end,
-			openMissionControl = function() end,
-			removeSpace = function() end,
-			addSpaceToScreen = function() end,
-			windowSpaces = function(win)
-				return self.windowSpaces[win] or {}
-			end,
-			watcher = {
-				new = function(callback)
-					self.spaceWatcherCallback = callback
-					return {start = function() end}
-				end
-			}
-		},
-		screen = {
-			mainScreen = function()
-				return { getUUID = function() return "screen-123" end }
+	_G.hs = helpers.createHsGlobal({
+		spaces = self.spaces,
+		moveWindowToSpace = function(win, space)
+			table.insert(self.movedWindows, {windowId = win, space = space})
+		end,
+		activeSpaceOnScreen = function()
+			return self.currentSpace
+		end,
+		windowSpaces = function(win)
+			return self.windowSpaces[win] or {}
+		end,
+		watcher = {
+			new = function(callback)
+				self.spaceWatcherCallback = callback
+				return {start = function() end}
 			end
 		},
-		window = {
-			focusedWindow = function()
-				return self.focusedWindowValue
-			end,
-			get = function(id)
-				if id == 100 then return self.window1 end
-				if id == 200 then return self.window2 end
-				return nil
-			end,
-			allWindows = function() return {} end,
-			filter = {
-				new = function()
-					return {
-						subscribe = function() end,
-						setCurrentSpace = function() end
-					}
-				end,
-				windowCreated = 1,
-				windowDestroyed = 2
-			}
-		}
-	}
+		focusedWindow = function()
+			return self.focusedWindowValue
+		end,
+		windowGet = function(id)
+			if id == 100 then return self.window1 end
+			if id == 200 then return self.window2 end
+			return nil
+		end
+	})
 
 	package.loaded['init'] = nil
 	local VirtualSpaces = require('init')

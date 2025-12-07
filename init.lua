@@ -92,6 +92,10 @@ function obj:init()
 	end)
 	self.spaceWatcher:start()
 
+	self.subscribers = {
+		virtualSpaceChanged = {}
+	}
+
 	return self
 end
 
@@ -125,6 +129,8 @@ function obj:switchToVirtualSpace(virtualSpace)
 
 		self:_switchSpaces(virtualSpace, currentNativeSpace)
 		self:_restoreWindowsFocusForVirtualSpace()
+
+		self:_dispatchEvent("virtualSpaceChanged")
 	end)
 end
 
@@ -190,6 +196,136 @@ function obj:getWindowsForCurrentVirtualSpace()
 	end
 
 	return windows
+end
+
+--- VirtualSpaces:getCurrentVirtualSpace()
+--- Method
+--- Returns the current virtual space ID
+---
+--- Parameters:
+--- * None
+---
+--- Returns:
+--- * Current virtual space ID (1-4)
+function obj:getCurrentVirtualSpace()
+	return self.model._currentVirtualSpace or 1
+end
+
+--- VirtualSpaces:getCurrentVirtualSpaceMetadata()
+--- Method
+--- Returns detailed metadata for the current virtual space
+---
+--- Parameters:
+--- * None
+---
+--- Returns:
+--- * Table with keys:
+---   * id - Current virtual space ID (1-4)
+---   * windowCount - Number of windows in this space
+---   * windows - Array of hs.window objects
+---   * focusedWindow - Currently focused window (or nil)
+function obj:getCurrentVirtualSpaceMetadata()
+	local currentSpace = self:getCurrentVirtualSpace()
+	local windows = self:getWindowsForCurrentVirtualSpace()
+	local focusedWindow = hs.window.focusedWindow()
+
+	return {
+		id = currentSpace,
+		windowCount = #windows,
+		windows = windows,
+		focusedWindow = focusedWindow
+	}
+end
+
+--- VirtualSpaces:subscribe(eventType, callback)
+--- Method
+--- Subscribe to virtual space events
+---
+--- Parameters:
+--- * eventType - Event type string (currently only "virtualSpaceChanged")
+--- * callback - Function to call when event occurs. Receives eventData parameter
+---
+--- Returns:
+--- * The VirtualSpaces object (for chaining)
+---
+--- Notes:
+--- * Callbacks are wrapped in pcall() to prevent errors from breaking event dispatch
+--- * Invalid event types log a warning
+--- * Non-function callbacks log an error
+function obj:subscribe(eventType, callback)
+	if not self.subscribers[eventType] then
+		hs.logger.new("VirtualSpaces"):w("Unknown event type: " .. eventType)
+		return self
+	end
+
+	if type(callback) ~= "function" then
+		hs.logger.new("VirtualSpaces"):e("Callback must be a function")
+		return self
+	end
+
+	table.insert(self.subscribers[eventType], callback)
+	return self
+end
+
+--- VirtualSpaces:unsubscribe(eventType, callback)
+--- Method
+--- Unsubscribe from virtual space events
+---
+--- Parameters:
+--- * eventType - Event type string
+--- * callback - The exact callback function to remove
+---
+--- Returns:
+--- * The VirtualSpaces object (for chaining)
+---
+--- Notes:
+--- * Removes only the first matching callback by reference equality
+--- * Safe to call with non-existent event types or callbacks
+function obj:unsubscribe(eventType, callback)
+	if not self.subscribers[eventType] then
+		return self
+	end
+
+	for i, cb in ipairs(self.subscribers[eventType]) do
+		if cb == callback then
+			table.remove(self.subscribers[eventType], i)
+			break
+		end
+	end
+
+	return self
+end
+
+--- VirtualSpaces:_dispatchEvent(eventType)
+--- Method
+--- Internal method to dispatch events to subscribed callbacks
+---
+--- Parameters:
+--- * eventType - Event type string
+---
+--- Returns:
+--- * None
+---
+--- Notes:
+--- * Wraps each callback in pcall() to prevent errors from breaking dispatch
+--- * Safely handles non-existent event types and missing subscribers
+--- * Not intended for external use (internal API)
+function obj:_dispatchEvent(eventType)
+	if not self.subscribers or not self.subscribers[eventType] then
+		return
+	end
+
+	local eventData = {
+		eventType = eventType,
+		currentSpace = self:getCurrentVirtualSpaceMetadata()
+	}
+
+	for _, callback in ipairs(self.subscribers[eventType]) do
+		local success, err = pcall(callback, eventData)
+		if not success then
+			hs.logger.new("VirtualSpaces"):e("Error in subscriber callback: " .. tostring(err))
+		end
+	end
 end
 
 --- VirtualSpaces:instrument(logLevel)

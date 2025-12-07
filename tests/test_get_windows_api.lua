@@ -9,53 +9,18 @@ function TestGetWindowsApi:setUp()
 	self.movedWindows = {}
 	self.mockWindows = {}
 
-	 for i, id in ipairs({100, 200, 300}) do
-		 self.mockWindows[id] = helpers.createHsWindow(id, string.format("App%d", i))
-	 end
+	for i, id in ipairs({100, 200, 300}) do
+		self.mockWindows[id] = helpers.createHsWindow(id, string.format("App%d", i))
+	end
 
-	_G.hs = {
-		spoons = {
-			scriptPath = function() return "./" end
-		},
-		spaces = {
-			moveWindowToSpace = function(window, space)
-				table.insert(self.movedWindows, {window = window, space = space})
-			end,
-			windowSpaces = function(winId)
-				return {self.spaces.activeSpace}
-			end,
-			activeSpaceOnScreen = function() return self.spaces.activeSpace end,
-			allSpaces = function()
-				return {["screen-123"] = {self.spaces.activeSpace, self.spaces.storageSpace}}
-			end,
-			openMissionControl = function() end,
-			removeSpace = function() end,
-			addSpaceToScreen = function() end,
-			watcher = { new = function() return {start = function() end} end }
-		},
-		screen = {
-			mainScreen = function()
-				return { getUUID = function() return "screen-123" end }
-			end
-		},
-		window = {
-			focusedWindow = function() return nil end,
-			get = function(id)
-				return self.mockWindows[id]
-			end,
-			allWindows = function() return {} end,
-			filter = {
-				new = function()
-					return {
-						subscribe = function() end,
-						setCurrentSpace = function() end
-					}
-				end,
-				windowCreated = 1,
-				windowDestroyed = 2
-			}
-		}
-	}
+	_G.hs = helpers.createHsGlobal({
+		spaces = self.spaces,
+		movedWindows = self.movedWindows,
+		mockWindows = self.mockWindows,
+		windowGet = function(id)
+			return self.mockWindows[id]
+		end
+	})
 
 	package.loaded['init'] = nil
 	local VirtualSpaces = require('init')

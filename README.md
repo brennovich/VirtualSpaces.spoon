@@ -52,6 +52,72 @@ spoon.VirtualSpaces:moveWindowToVirtualSpace(window, virtualSpace)
 
 If `window` is `nil`, the currently focused window is used.
 
+### Public API
+
+VirtualSpaces exposes a public API for extensibility and integration with other spoons.
+
+#### Query Current State
+
+Get the current virtual space ID:
+
+```lua
+local spaceId = spoon.VirtualSpaces:getCurrentVirtualSpace()
+-- Returns: number (1-N)
+```
+
+Get detailed metadata for the current virtual space:
+
+```lua
+local metadata = spoon.VirtualSpaces:getCurrentVirtualSpaceMetadata()
+-- Returns: {
+--   id = number,              -- Current virtual space ID (1-N)
+--   windowCount = number,     -- Number of windows in this space
+--   windows = table,          -- Array of hs.window objects
+--   focusedWindow = window    -- Currently focused window (or nil)
+-- }
+```
+
+Get all windows in the current virtual space:
+
+```lua
+local windows = spoon.VirtualSpaces:getWindowsForCurrentVirtualSpace()
+-- Returns: array of hs.window objects
+```
+
+#### Event Subscription
+
+Subscribe to virtual space events:
+
+```lua
+spoon.VirtualSpaces:subscribe("virtualSpaceChanged", function(eventData)
+    print("Switched to space " .. eventData.currentSpace.id)
+    print("Window count: " .. eventData.currentSpace.windowCount)
+end)
+```
+
+Event data structure:
+
+```lua
+{
+    eventType = "virtualSpaceChanged",
+    currentSpace = {
+        id = number,              -- Current virtual space ID (1-N)
+        windowCount = number,     -- Number of windows
+        windows = table,          -- Array of hs.window objects
+        focusedWindow = window    -- Currently focused window (or nil)
+    }
+}
+```
+
+-- Subscribe
+spoon.VirtualSpaces:subscribe("virtualSpaceChanged", callback)
+
+-- Unsubscribe
+spoon.VirtualSpaces:unsubscribe("virtualSpaceChanged", callback)
+```
+
+Both methods return `self` for chaining.
+
 ## Typical Usage
 
 ```lua

@@ -77,4 +77,71 @@ function TestHelpers.createSimpleWindow(id)
 	return TestHelpers.createWindow(id, 1, {x = 0, y = 0, w = 800, h = 600}, "TestApp")
 end
 
+function TestHelpers.createHsGlobal(overrides)
+	overrides = overrides or {}
+
+	local spaces = overrides.spaces or {activeSpace = 1, storageSpace = 2}
+	local movedWindows = overrides.movedWindows or {}
+	local mockWindows = overrides.mockWindows or {}
+
+	return {
+		spoons = {
+			scriptPath = overrides.scriptPath or function() return "./" end
+		},
+		spaces = {
+			moveWindowToSpace = overrides.moveWindowToSpace or function(window, space)
+				table.insert(movedWindows, {window = window, space = space})
+			end,
+			windowSpaces = overrides.windowSpaces or function(winId)
+				return {spaces.activeSpace}
+			end,
+			activeSpaceOnScreen = overrides.activeSpaceOnScreen or function()
+				return spaces.activeSpace
+			end,
+			allSpaces = overrides.allSpaces or function()
+				return {["screen-123"] = {spaces.activeSpace, spaces.storageSpace}}
+			end,
+			openMissionControl = overrides.openMissionControl or function() end,
+			removeSpace = overrides.removeSpace or function() end,
+			addSpaceToScreen = overrides.addSpaceToScreen or function() end,
+			watcher = overrides.watcher or {
+				new = function()
+					return {start = function() end}
+				end
+			}
+		},
+		screen = {
+			mainScreen = overrides.mainScreen or function()
+				return { getUUID = function() return "screen-123" end }
+			end
+		},
+		window = {
+			focusedWindow = overrides.focusedWindow or function() return nil end,
+			get = overrides.windowGet or function(id)
+				return mockWindows[id]
+			end,
+			allWindows = overrides.allWindows or function() return {} end,
+			filter = {
+				new = overrides.filterNew or function()
+					return {
+						subscribe = function() end,
+						setCurrentSpace = function() end
+					}
+				end,
+				windowCreated = 1,
+				windowDestroyed = 2
+			}
+		},
+		logger = {
+			new = overrides.loggerNew or function()
+				return {
+					w = function() end,
+					e = function() end,
+					level = 0
+				}
+			end
+		}
+	}
+end
+
 return TestHelpers

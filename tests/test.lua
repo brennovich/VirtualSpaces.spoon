@@ -8,5 +8,6 @@ TestTelemetry = require('tests/test_telemetry')
 TestWindowCache = require('tests/test_window_cache')
 TestSpaceWatcher = require('tests/test_space_watcher')
 TestGetWindowsApi = require('tests/test_get_windows_api')
+TestPublicApi = require('tests/test_public_api')
 
 os.exit(lu.LuaUnit.run())
