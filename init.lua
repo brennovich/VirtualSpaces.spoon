@@ -72,8 +72,6 @@ function obj:init()
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
 		self.model:unregisterWindowById(window:id())
 		self.windowCache:remove(window:id())
-
-		self:_restoreWindowsFocusForVirtualSpace()
 	end)
 
 	self.spaceWatcher = hs.spaces.watcher.new(function()
@@ -348,6 +346,13 @@ function obj:instrument(logLevel)
 end
 
 function obj:_switchSpaces(virtualSpace, currentNativeSpace)
+	self._telemetry:span("captureCurrentFocusBeforeSwitch", function()
+		local currentFocused = hs.window.focusedWindow()
+		if currentFocused and self:_isValidWindowForVirtualSpace(currentFocused) then
+			self.model:saveFocusedWindowInVirtualSpace(self.model:getCurrentVirtualSpace(), currentFocused:id())
+		end
+	end)
+
 	self.nativeSpaceManager:updateSpaces(
 		self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
 			self.model:categorizeWindowsForTransition(
@@ -356,6 +361,7 @@ function obj:_switchSpaces(virtualSpace, currentNativeSpace)
 			currentNativeSpace
 		)
 	)
+
 	self.model:setCurrentVirtualSpace(virtualSpace)
 end
 

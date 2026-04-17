@@ -331,4 +331,29 @@ function TestPublicApi:testSwitchToSameVirtualSpaceDoesNotTriggerEvent()
 	lu.assertEquals(callCount, 0)
 end
 
+function TestPublicApi:testSwitchingAwayCapturesCurrentFocusedWindowBeforeLeaving()
+	local focusCalls = {}
+
+	local tab1 = helpers.createHsWindow(100, "Terminal")
+	local tab2 = helpers.createHsWindow(200, "Terminal")
+	tab1.focus = function() table.insert(focusCalls, 100) end
+	tab2.focus = function() table.insert(focusCalls, 200) end
+
+	self.mockWindows[100] = tab1
+	self.mockWindows[200] = tab2
+	self.obj.windowCache:add(tab1)
+	self.obj.windowCache:add(tab2)
+	self.obj.model:assignWindowToVirtualSpace(100, 1)
+	self.obj.model:assignWindowToVirtualSpace(200, 1)
+	self.obj.model:saveFocusedWindowInVirtualSpace(1, 200)
+
+	_G.hs.window.focusedWindow = function() return tab1 end
+	self.obj:switchToVirtualSpace(2)
+
+	_G.hs.window.focusedWindow = function() return nil end
+	self.obj:switchToVirtualSpace(1)
+
+	lu.assertEquals(focusCalls[#focusCalls], 100)
+end
+
 return TestPublicApi
