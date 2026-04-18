@@ -9,5 +9,6 @@ TestWindowCache = require('tests/test_window_cache')
 TestSpaceWatcher = require('tests/test_space_watcher')
 TestGetWindowsApi = require('tests/test_get_windows_api')
 TestPublicApi = require('tests/test_public_api')
+TestWindowDestroyed = require('tests/test_window_destroyed')
 
 os.exit(lu.LuaUnit.run())

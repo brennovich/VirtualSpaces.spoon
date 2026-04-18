@@ -70,8 +70,13 @@ function obj:init()
 	end)
 
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
+		local hasTabSiblings = self.model:getTabSiblingsBeforeDestruction(window:id()) ~= nil
 		self.model:unregisterWindowById(window:id())
 		self.windowCache:remove(window:id())
+
+		if not hasTabSiblings then
+			self:_restoreWindowsFocusForVirtualSpace()
+		end
 	end)
 
 	self.spaceWatcher = hs.spaces.watcher.new(function()

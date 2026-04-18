@@ -129,7 +129,8 @@ function TestHelpers.createHsGlobal(overrides)
 					}
 				end,
 				windowCreated = 1,
-				windowDestroyed = 2
+				windowDestroyed = 2,
+				windowFocused = 3
 			}
 		},
 		logger = {
