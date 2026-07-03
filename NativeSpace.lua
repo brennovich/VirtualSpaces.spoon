@@ -12,14 +12,14 @@
 -- with exactly two Spaces on the main screen.
 local Telemetry = require("Telemetry")
 
-local NativeSpaceManager = {}
-NativeSpaceManager.__index = NativeSpaceManager
+local NativeSpace = {}
+NativeSpace.__index = NativeSpace
 
 local TARGET_NUMBER_OF_SPACES = 2
 
-function NativeSpaceManager.new(deps)
+function NativeSpace.new(deps)
 	deps = deps or {}
-	local self = setmetatable({}, NativeSpaceManager)
+	local self = setmetatable({}, NativeSpace)
 
 	self._hsSpaces = deps.hsSpaces or hs.spaces
 	self._hsScreen = deps.hsScreen or hs.screen
@@ -31,7 +31,7 @@ function NativeSpaceManager.new(deps)
 	return self
 end
 
-function NativeSpaceManager:setupForMainScreen()
+function NativeSpace:setupForMainScreen()
 	return self._telemetry:span("setupForMainScreen", function()
 		local mainScreen = self._hsScreen.mainScreen():getUUID()
 		local allSpaces = self._telemetry:span("allSpaces()", function()
@@ -60,20 +60,40 @@ function NativeSpaceManager:setupForMainScreen()
 	end)
 end
 
-function NativeSpaceManager:getActiveSpace()
+function NativeSpace:getActiveSpace()
 	return self._activeSpace
 end
 
-function NativeSpaceManager:getStorageSpace()
+function NativeSpace:getStorageSpace()
 	return self._storageSpace
 end
 
-function NativeSpaceManager:updateSpaces(activeSpace, storageSpace)
+function NativeSpace:updateSpaces(activeSpace, storageSpace)
 	self._activeSpace = activeSpace
 	self._storageSpace = storageSpace
 end
 
-function NativeSpaceManager:_verify(mainScreen)
+function NativeSpace:moveWindowToSpace(winId, spaceId)
+	return self._hsSpaces.moveWindowToSpace(winId, spaceId)
+end
+
+function NativeSpace:windowSpaces(winId)
+	return self._hsSpaces.windowSpaces(winId)
+end
+
+function NativeSpace:getCurrentNativeSpace()
+	return self._hsSpaces.activeSpaceOnScreen()
+end
+
+function NativeSpace:startWatchingForManualNavigation(callback)
+	self._watcher = self._hsSpaces.watcher.new(function()
+		callback(self._hsSpaces.activeSpaceOnScreen())
+	end)
+	self._watcher:start()
+	return self._watcher
+end
+
+function NativeSpace:_verify(mainScreen)
 	local allSpaces = self._hsSpaces.allSpaces()
 	local spaces = allSpaces[mainScreen]
 
@@ -92,4 +112,4 @@ function NativeSpaceManager:_verify(mainScreen)
 	))
 end
 
-return NativeSpaceManager
+return NativeSpace

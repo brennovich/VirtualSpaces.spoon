@@ -94,7 +94,7 @@ function TestMoveWindowToVirtualSpace:testMovesFocusedWindowWhenWindowParameterI
 	self.obj:moveWindowToVirtualSpace(nil, 2)
 
 	lu.assertEquals(#self.movedWindows, 1)
-	lu.assertEquals(self.movedWindows[1].window.id(), 100)
+	lu.assertEquals(self.movedWindows[1].window, 100)
 	lu.assertEquals(self.movedWindows[1].space, self.spaces.storageSpace)
 end
 
@@ -116,7 +116,7 @@ function TestMoveWindowToVirtualSpace:testMovesExplicitWindowWhenProvided()
 	self.obj:moveWindowToVirtualSpace(explicitWindow, 2)
 
 	lu.assertEquals(#self.movedWindows, 1)
-	lu.assertEquals(self.movedWindows[1].window.id(), 200)
+	lu.assertEquals(self.movedWindows[1].window, 200)
 	lu.assertEquals(self.movedWindows[1].space, self.spaces.storageSpace)
 end
 

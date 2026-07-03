@@ -22,7 +22,11 @@ eval $(luarocks --local path) && lua tests/test.lua -o TAP
 # Without TAP output
 lua tests/test.lua
 
-# Run acceptance tests
+# Run a single test class or method (LuaUnit filters by name)
+lua tests/test.lua TestWindowDestroyed
+lua tests/test.lua TestWindowDestroyed.testNonTabbedWindowDestroyedRestoresFocus
+
+# Run acceptance tests (requires Hammerspoon installed, exercises a real hs instance)
 make test/acceptance
 ```
 
@@ -45,13 +49,14 @@ make docs.json
 Tests are organized by module in `tests/`. Each test file can be run independently by requiring it from `tests/test.lua`:
 - `tests/test_windows_sort.lua` - WindowsSort logic
 - `tests/test_spaces_model.lua` - SpacesModel state management
-- `tests/test_native_space_manager.lua` - NativeSpaceManager setup
+- `tests/test_native_space.lua` - NativeSpace setup
 - `tests/test_move_window_to_virtual_space.lua` - Window movement tests
 - `tests/test_space_watcher.lua` - Space watcher behavior
 - `tests/test_telemetry.lua` - Telemetry/instrumentation tests
 - `tests/test_window_cache.lua` - WindowCache caching logic
 - `tests/test_get_windows_api.lua` - Public API for getting windows
 - `tests/test_public_api.lua` - Public API tests
+- `tests/test_window_destroyed.lua` - Window destruction and focus restoration behavior
 
 ### Development
 This is a Hammerspoon Spoon. Load it in Hammerspoon with:
@@ -59,7 +64,7 @@ This is a Hammerspoon Spoon. Load it in Hammerspoon with:
 hs.loadSpoon("VirtualSpaces")
 spoon.VirtualSpaces:init()
 
--- Enable telemetry for debugging
+-- Enable telemetry for debugging (default level is 'warning', i.e. disabled)
 spoon.VirtualSpaces:instrument('info')   -- Log operations only
 spoon.VirtualSpaces:instrument('debug')  -- Log operations + performance
 ```
@@ -86,7 +91,7 @@ spoon.VirtualSpaces:instrument('debug')  -- Log operations + performance
    - Injects `windowSpaceGetter` (typically `hs.spaces.windowSpaces`) to check current window location
    - Skips window moves when window is already in target space (performance optimization)
 
-3. **NativeSpaceManager** (`NativeSpaceManager.lua`): macOS Spaces setup
+3. **NativeSpace** (`NativeSpace.lua`): macOS Spaces setup
    - Ensures exactly two native spaces exist on main screen
    - Designates first space as "active", second as "storage"
    - Handles space creation/removal on initialization
@@ -148,7 +153,7 @@ Performance optimization that caches window objects:
 ### Main Controller (`init.lua`)
 
 Orchestrates all components:
-- Initializes native space setup via `NativeSpaceManager`
+- Initializes native space setup via `NativeSpace`
 - Creates `WindowsSort` with space IDs and window mover function
 - Creates `SpacesModel` for state tracking
 - Creates `WindowCache` for performance optimization
@@ -240,7 +245,7 @@ function TestModuleName:testSomething()
 end
 ```
 
-Mock Hammerspoon APIs by injecting functions/objects into constructors (see `NativeSpaceManager.new()` parameters).
+Mock Hammerspoon APIs by injecting functions/objects into constructors (see `NativeSpace.new()` parameters).
 
 ### Test Helpers
 
@@ -279,6 +284,6 @@ Components accept an optional `telemetry` parameter in their constructors:
 - **Does not support macOS Sequoia** - Due to [Hammerspoon issue #3698](https://github.com/Hammerspoon/hammerspoon/issues/3698), the spoon relies heavily on `hs.spaces.moveWindowToSpace` which is broken on Sequoia
 - Only standard windows are managed (fullscreen windows excluded)
 - Window identification uses numeric window IDs (`window:id()`)
-- Requires exactly two native macOS spaces to function
+- Requires exactly two native macOS spaces to function; native Spaces features (e.g. creating new spaces via Mission Control) should not be used alongside it
 - All operations target main screen only (multi-screen support may be added in the future)
 - Native focus events (Dock clicks, cmd+tab) trigger macOS space transitions - recommend setting Reduce Motion in System Preferences > Accessibility > Display

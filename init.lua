@@ -12,7 +12,7 @@ package.path = package.path .. ";" .. spoonPath .. "?.lua"
 local Window = require("Window")
 local WindowsSort = require("WindowsSort")
 local SpacesModel = require("SpacesModel")
-local NativeSpaceManager = require("NativeSpaceManager")
+local NativeSpace = require("NativeSpace")
 local Telemetry = require("Telemetry")
 local WindowCache = require("WindowCache")
 
@@ -41,13 +41,15 @@ obj.license = "MIT"
 --- * Implements space watcher to detect manual navigation to storage space
 function obj:init()
 	self._telemetry = Telemetry.new('VirtualSpaces', 'warning')
-	self.nativeSpaceManager = NativeSpaceManager.new({telemetry = self._telemetry})
+	self.spaceStrategy = NativeSpace.new({telemetry = self._telemetry})
 
 	-- Ensure we have exactly two native spaces on the main screen
-	local activeSpace, storageSpace = self.nativeSpaceManager:setupForMainScreen()
+	local activeSpace, storageSpace = self.spaceStrategy:setupForMainScreen()
 
 	self._windowSorter = WindowsSort.new(activeSpace, storageSpace, {
-		telemetry = self._telemetry
+		telemetry = self._telemetry,
+		windowMoverFn = function(winId, spaceId) return self.spaceStrategy:moveWindowToSpace(winId, spaceId) end,
+		windowSpaceGetter = function(winId) return self.spaceStrategy:windowSpaces(winId) end,
 	})
 
 	self.model = SpacesModel.new()
@@ -81,21 +83,18 @@ function obj:init()
 		end
 	end)
 
-	self.spaceWatcher = hs.spaces.watcher.new(function()
-		local spaceId = hs.spaces.activeSpaceOnScreen()
-
-		self._telemetry:span(string.format("spaceWatcher(%d)", spaceId), function()
-			if spaceId == self.nativeSpaceManager:getStorageSpace() then
+	self.spaceStrategy:startWatchingForManualNavigation(function(currentNativeSpace)
+		self._telemetry:span(string.format("spaceWatcher(%s)", tostring(currentNativeSpace)), function()
+			if currentNativeSpace == self.spaceStrategy:getStorageSpace() then
 				local win = hs.window.focusedWindow()
 				if not win then return end
 
 				local windowVirtualSpace = self.model:getVirtualSpaceForWindow(win:id()) or 1
 
-				self:_switchSpaces(windowVirtualSpace, spaceId)
+				self:_switchSpaces(windowVirtualSpace, currentNativeSpace)
 			end
 		end)
 	end)
-	self.spaceWatcher:start()
 
 	self.subscribers = {
 		virtualSpaceChanged = {}
@@ -126,9 +125,9 @@ function obj:switchToVirtualSpace(virtualSpace)
 	end
 
 	return self._telemetry:span(string.format("switchToVirtualSpace(%d)", virtualSpace), function()
-		local currentNativeSpace = hs.spaces.activeSpaceOnScreen()
+		local currentNativeSpace = self.spaceStrategy:getCurrentNativeSpace()
 
-		if virtualSpace == self.model:getCurrentVirtualSpace() and currentNativeSpace == self.nativeSpaceManager:getActiveSpace() then
+		if virtualSpace == self.model:getCurrentVirtualSpace() and currentNativeSpace == self.spaceStrategy:getActiveSpace() then
 			return
 		end
 
@@ -162,11 +161,11 @@ function obj:moveWindowToVirtualSpace(window, virtualSpace)
 		if not self:_isValidWindowForVirtualSpace(window) then return end
 
 		local targetNativeSpace = (virtualSpace == self.model:getCurrentVirtualSpace())
-			and self.nativeSpaceManager:getActiveSpace()
-			or self.nativeSpaceManager:getStorageSpace()
+			and self.spaceStrategy:getActiveSpace()
+			or self.spaceStrategy:getStorageSpace()
 
 		self._telemetry:span(string.format("moveWindowToSpace(%d)", window:id()), function()
-			hs.spaces.moveWindowToSpace(window, targetNativeSpace)
+			self.spaceStrategy:moveWindowToSpace(window:id(), targetNativeSpace)
 			self.model:moveWindowToVirtualSpace(window:id(), virtualSpace)
 		end)
 
@@ -360,7 +359,7 @@ function obj:_switchSpaces(virtualSpace, currentNativeSpace)
 		end
 	end)
 
-	self.nativeSpaceManager:updateSpaces(
+	self.spaceStrategy:updateSpaces(
 		self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
 			self.model:categorizeWindowsForTransition(
 				virtualSpace, self.model:getCurrentVirtualSpace()
