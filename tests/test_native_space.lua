@@ -5,7 +5,7 @@ local NativeSpace = require('NativeSpace')
 
 TestNativeSpace = {}
 
-local function mokedNativeSpace(options)
+local function mockedNativeSpace(options)
 	options = options or {}
 	local screenUUID = options.screenUUID or "screen-uuid-123"
 	local initialSpaces = options.initialSpaces or {"space-1", "space-2"}
@@ -123,7 +123,7 @@ function TestNativeSpace:testUpdateSpaces()
 end
 
 function TestNativeSpace:testSetupForMainScreenWithExactlyTwoSpaces()
-	local space, inspect = mokedNativeSpace({
+	local space, inspect = mockedNativeSpace({
 		initialSpaces = {"space-1", "space-2"}
 	})
 
@@ -136,7 +136,7 @@ function TestNativeSpace:testSetupForMainScreenWithExactlyTwoSpaces()
 end
 
 function TestNativeSpace:testSetupForMainScreenRemovesExtraSpaces()
-	local space, inspect = mokedNativeSpace({
+	local space, inspect = mockedNativeSpace({
 		initialSpaces = {"space-1", "space-2", "space-3", "space-4"},
 		finalSpaces = {"space-1", "space-new"}
 	})
@@ -153,7 +153,7 @@ function TestNativeSpace:testSetupForMainScreenRemovesExtraSpaces()
 end
 
 function TestNativeSpace:testSetupForMainScreenInitiatesMissionControl()
-	local space, inspect = mokedNativeSpace()
+	local space, inspect = mockedNativeSpace()
 
 	space:setupForMainScreen()
 
@@ -161,7 +161,7 @@ function TestNativeSpace:testSetupForMainScreenInitiatesMissionControl()
 end
 
 function TestNativeSpace:testSetupForMainScreenCreatesStorageSpace()
-	local space, inspect = mokedNativeSpace()
+	local space, inspect = mockedNativeSpace()
 
 	space:setupForMainScreen()
 
@@ -171,7 +171,7 @@ function TestNativeSpace:testSetupForMainScreenCreatesStorageSpace()
 end
 
 function TestNativeSpace:testSetupForMainScreenWithOneSpaceInitially()
-	local space = mokedNativeSpace({
+	local space = mockedNativeSpace({
 		initialSpaces = {"space-1"},
 		finalSpaces = {"space-1", "space-storage"}
 	})
@@ -185,7 +185,7 @@ function TestNativeSpace:testSetupForMainScreenWithOneSpaceInitially()
 end
 
 function TestNativeSpace:testSetupFailsWhenOnlyOneSpaceExists()
-	local space = mokedNativeSpace({
+	local space = mockedNativeSpace({
 		initialSpaces = {"space-1"},
 		finalSpaces = {"space-1"}
 	})
@@ -199,7 +199,7 @@ function TestNativeSpace:testSetupFailsWhenOnlyOneSpaceExists()
 end
 
 function TestNativeSpace:testSetupFailsWhenMoreThanTwoSpacesExist()
-	local space = mokedNativeSpace({
+	local space = mockedNativeSpace({
 		initialSpaces = {"space-1", "space-2", "space-3"},
 		finalSpaces = {"space-1", "space-2", "space-3"}
 	})
@@ -213,7 +213,7 @@ function TestNativeSpace:testSetupFailsWhenMoreThanTwoSpacesExist()
 end
 
 function TestNativeSpace:testMoveWindowToSpaceDelegatesToHsSpaces()
-	local space, inspect = mokedNativeSpace()
+	local space, inspect = mockedNativeSpace()
 
 	space:moveWindowToSpace(100, "space-2")
 
@@ -222,7 +222,7 @@ function TestNativeSpace:testMoveWindowToSpaceDelegatesToHsSpaces()
 end
 
 function TestNativeSpace:testWindowSpacesDelegatesToHsSpaces()
-	local space, inspect = mokedNativeSpace({activeSpace = "space-1"})
+	local space, inspect = mockedNativeSpace({activeSpace = "space-1"})
 
 	local spaces = space:windowSpaces(100)
 
@@ -231,13 +231,22 @@ function TestNativeSpace:testWindowSpacesDelegatesToHsSpaces()
 end
 
 function TestNativeSpace:testGetCurrentNativeSpaceDelegatesToHsSpaces()
-	local space = mokedNativeSpace({activeSpace = "space-2"})
+	local space = mockedNativeSpace({activeSpace = "space-2"})
 
 	lu.assertEquals(space:getCurrentNativeSpace(), "space-2")
 end
 
+function TestNativeSpace:testForgetWindowDoesNotTouchNativeSpaces()
+	local space, inspect = mockedNativeSpace()
+
+	space:forgetWindow(100)
+
+	lu.assertEquals(#inspect.movedWindows, 0)
+	lu.assertEquals(#inspect.windowSpacesCalls, 0)
+end
+
 function TestNativeSpace:testStartWatchingForManualNavigationStartsWatcher()
-	local space, inspect = mokedNativeSpace()
+	local space, inspect = mockedNativeSpace()
 
 	space:startWatchingForManualNavigation(function() end)
 
@@ -245,7 +254,7 @@ function TestNativeSpace:testStartWatchingForManualNavigationStartsWatcher()
 end
 
 function TestNativeSpace:testStartWatchingForManualNavigationPassesCurrentNativeSpaceToCallback()
-	local space, inspect = mokedNativeSpace({activeSpace = "space-1"})
+	local space, inspect = mockedNativeSpace({activeSpace = "space-1"})
 
 	local receivedSpace = nil
 	space:startWatchingForManualNavigation(function(currentNativeSpace)

@@ -13,8 +13,11 @@ local Window = require("Window")
 local WindowsSort = require("WindowsSort")
 local SpacesModel = require("SpacesModel")
 local NativeSpace = require("NativeSpace")
+local EmulatedSpace = require("EmulatedSpace")
 local Telemetry = require("Telemetry")
 local WindowCache = require("WindowCache")
+
+local SEQUOIA_MAJOR_VERSION = 15
 
 local obj = {}
 obj.__index = obj
@@ -41,9 +44,19 @@ obj.license = "MIT"
 --- * Implements space watcher to detect manual navigation to storage space
 function obj:init()
 	self._telemetry = Telemetry.new('VirtualSpaces', 'warning')
-	self.spaceStrategy = NativeSpace.new({telemetry = self._telemetry})
+	self.windowCache = WindowCache.new(self._telemetry)
+	self.windowFilter = hs.window.filter.new()
 
-	-- Ensure we have exactly two native spaces on the main screen
+	if hs.host.operatingSystemVersion().major >= SEQUOIA_MAJOR_VERSION then
+		self.spaceStrategy = EmulatedSpace.new({
+			telemetry = self._telemetry,
+			windowGetter = function(winId) return self.windowCache:get(winId) end,
+			windowFilter = self.windowFilter,
+		})
+	else
+		self.spaceStrategy = NativeSpace.new({telemetry = self._telemetry})
+	end
+
 	local activeSpace, storageSpace = self.spaceStrategy:setupForMainScreen()
 
 	self._windowSorter = WindowsSort.new(activeSpace, storageSpace, {
@@ -53,8 +66,6 @@ function obj:init()
 	})
 
 	self.model = SpacesModel.new()
-	self.windowCache = WindowCache.new(self._telemetry)
-	self.windowFilter = hs.window.filter.new()
 
 	for _, win in ipairs(hs.window.allWindows()) do
 		self:_assignWindowToVirtualSpace(win, 1)
@@ -77,6 +88,7 @@ function obj:init()
 		local hasTabSiblings = self.model:getTabSiblingsBeforeDestruction(window:id()) ~= nil
 		self.model:unregisterWindowById(window:id())
 		self.windowCache:remove(window:id())
+		self.spaceStrategy:forgetWindow(window:id())
 
 		if not hasTabSiblings then
 			self:_restoreWindowsFocusForVirtualSpace()
@@ -91,7 +103,7 @@ function obj:init()
 
 				local windowVirtualSpace = self.model:getVirtualSpaceForWindow(win:id()) or 1
 
-				self:_switchSpaces(windowVirtualSpace, currentNativeSpace)
+				self:_switchSpaces(windowVirtualSpace, self.spaceStrategy:getCurrentNativeSpace())
 			end
 		end)
 	end)

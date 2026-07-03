@@ -22,6 +22,9 @@ function TestMoveWindowToVirtualSpace:setUp()
 		spoons = {
 			scriptPath = function() return "./" end
 		},
+		host = {
+			operatingSystemVersion = function() return {major = 14, minor = 0, patch = 0} end
+		},
 		spaces = {
 			moveWindowToSpace = function(window, space)
 				table.insert(self.movedWindows, {window = window, space = space})

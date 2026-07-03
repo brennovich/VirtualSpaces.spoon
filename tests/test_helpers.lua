@@ -61,6 +61,8 @@ function TestHelpers.createWindow(id, tabCount, frame, appName)
 end
 
 function TestHelpers.createHsWindow(id, appName)
+	local currentFrame = {x = 0, y = 0, w = 800, h = 600}
+
 	return {
 		id = function() return id end,
 		isStandard = function() return true end,
@@ -68,7 +70,8 @@ function TestHelpers.createHsWindow(id, appName)
 		isMinimized = function() return false end,
 		focus = function() end,
 		tabCount = function() return 1 end,
-		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
+		frame = function() return currentFrame end,
+		setFrame = function(_, newFrame) currentFrame = newFrame end,
 		application = function() return {name = function() return appName end} end
 	}
 end
@@ -87,6 +90,11 @@ function TestHelpers.createHsGlobal(overrides)
 	return {
 		spoons = {
 			scriptPath = overrides.scriptPath or function() return "./" end
+		},
+		host = {
+			operatingSystemVersion = overrides.operatingSystemVersion or function()
+				return {major = 14, minor = 0, patch = 0}
+			end
 		},
 		spaces = {
 			moveWindowToSpace = overrides.moveWindowToSpace or function(window, space)
@@ -112,7 +120,11 @@ function TestHelpers.createHsGlobal(overrides)
 		},
 		screen = {
 			mainScreen = overrides.mainScreen or function()
-				return { getUUID = function() return "screen-123" end }
+				return {
+					getUUID = function() return "screen-123" end,
+					fullFrame = function() return {x = 0, y = 0, w = 1792, h = 1120} end,
+					frame = function() return {x = 0, y = 25, w = 1792, h = 1095} end,
+				}
 			end
 		},
 		window = {

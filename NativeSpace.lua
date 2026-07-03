@@ -93,6 +93,9 @@ function NativeSpace:startWatchingForManualNavigation(callback)
 	return self._watcher
 end
 
+function NativeSpace:forgetWindow(winId)
+end
+
 function NativeSpace:_verify(mainScreen)
 	local allSpaces = self._hsSpaces.allSpaces()
 	local spaces = allSpaces[mainScreen]

@@ -15,7 +15,7 @@ jobs:
   commit:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: leafo/gh-actions-lua@v10
         with:
           luaVersion: '5.4'
@@ -40,9 +40,12 @@ jobs:
 
   acceptance:
     needs: [commit]
-    runs-on: macos-14
+    strategy:
+      matrix:
+        os: [macos-14, macos-15]
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v5
         with:
           name: release-candidate
@@ -61,7 +64,7 @@ jobs:
     needs: [acceptance]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - id: semver
         uses: ietf-tools/semver-action@v1
         with:
