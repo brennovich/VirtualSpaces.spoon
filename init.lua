@@ -63,10 +63,12 @@ function obj:init()
 	end)
 
 	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
-		local virtualSpace = self.model:getVirtualSpaceForWindow(window:id()) or self.model:getCurrentVirtualSpace()
-		if self:_isValidWindowForVirtualSpace(window) then
-			self.model:saveFocusedWindowInVirtualSpace(virtualSpace, window:id())
-		end
+		self._telemetry:span(string.format("saveWindowFocus(%d)", window:id()), function()
+			local virtualSpace = self.model:getVirtualSpaceForWindow(window:id()) or self.model:getCurrentVirtualSpace()
+			if self:_isValidWindowForVirtualSpace(window) then
+				self.model:saveFocusedWindowInVirtualSpace(virtualSpace, window:id())
+			end
+		end)
 	end)
 
 	self.windowFilter:subscribe(hs.window.filter.windowDestroyed, function(window)
@@ -381,6 +383,14 @@ end
 
 function obj:_restoreWindowsFocusForVirtualSpace()
 	return self._telemetry:span("restoreWindowsFocus", function()
+		local currentSpace = self.model:getCurrentVirtualSpace()
+		local osFocused = hs.window.focusedWindow()
+		if osFocused and self:_isValidWindowForVirtualSpace(osFocused)
+			and self.model:getVirtualSpaceForWindow(osFocused:id()) == currentSpace then
+			self.model:saveFocusedWindowInVirtualSpace(currentSpace, osFocused:id())
+			return
+		end
+
 		local win = self.windowCache:get(
 			self.model:prepareWindownToBeFocusedOnCurrentVirtualSpace())
 

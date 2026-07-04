@@ -7,6 +7,7 @@ function TestWindowDestroyed:setUp()
 
 	self.focusCalls = {}
 	self.filterCallbacks = {}
+	self.mockFocusedWindow = nil
 
 	local filterCallbacks = self.filterCallbacks
 	local focusCalls = self.focusCalls
@@ -71,7 +72,7 @@ function TestWindowDestroyed:setUp()
 			if id == 301 then return self.window3b end
 			return nil
 		end,
-		focusedWindow = function() return nil end
+		focusedWindow = function() return self.mockFocusedWindow end
 	})
 
 	package.loaded['init'] = nil
@@ -100,6 +101,20 @@ function TestWindowDestroyed:testTabbedWindowDestroyedDoesNotRestoreFocus()
 	self.filterCallbacks[2](self.window3b)
 
 	lu.assertEquals(self.focusCalls, {})
+end
+
+function TestWindowDestroyed:testTabSiblingFocusPreservedWhenSeparateWindowClosed()
+	self.filterCallbacks[1](self.window3a)
+	self.filterCallbacks[1](self.window3b)
+	self.filterCallbacks[3](self.window3a)
+	self.filterCallbacks[1](self.window1)
+	self.filterCallbacks[3](self.window1)
+
+	self.mockFocusedWindow = self.window3b
+	self.filterCallbacks[2](self.window1)
+
+	lu.assertEquals(self.obj.model:getFocusedWindowForVirtualSpace(1), 301)
+	lu.assertFalse(table.contains(self.focusCalls, 300))
 end
 
 return TestWindowDestroyed
