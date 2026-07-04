@@ -16,10 +16,10 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v7
-      - uses: leafo/gh-actions-lua@v10
+      - uses: leafo/gh-actions-lua@v13
         with:
           luaVersion: '5.4'
-      - uses: leafo/gh-actions-luarocks@v4
+      - uses: leafo/gh-actions-luarocks@v6
       - id: install-dependencies
         run: make dependencies
       - id: test
@@ -33,7 +33,7 @@ jobs:
           test -f release/VirtualSpaces.spoon.zip
           unzip -t release/VirtualSpaces.spoon.zip
       - id: upload-artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: release-candidate
           path: release/VirtualSpaces.spoon.zip
@@ -46,7 +46,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: release-candidate
       - id: install-hammerspoon
@@ -70,7 +70,7 @@ jobs:
         with:
           token: ${{ github.token }}
           patchAll: true
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: release-candidate
       - id: create-tag
