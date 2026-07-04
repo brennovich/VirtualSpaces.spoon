@@ -11,6 +11,9 @@ on:
 permissions:
   contents: write
 
+env:
+  HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
+
 jobs:
   commit:
     runs-on: macos-14
