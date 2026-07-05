@@ -13,7 +13,7 @@ description = {
       It manages window placement across multiple virtual workspaces using macOS Spaces.
    ]],
    homepage = "https://github.com/brennovich/VirtualSpaces.spoon",
-   license = "MIT"
+   license = "GPL-3.0"
 }
 
 dependencies = {
