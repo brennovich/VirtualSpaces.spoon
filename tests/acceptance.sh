@@ -22,7 +22,7 @@ open_textedit_window() {
 }
 
 close_textedit_windows() {
-    osascript -e 'tell application "TextEdit" to close every document saving no' >/dev/null 2>&1 || true
+    killall TextEdit >/dev/null 2>&1 || true
     rm -f "$MARKER_FILE"
 }
 
