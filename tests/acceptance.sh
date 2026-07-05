@@ -3,6 +3,7 @@
 set -e
 
 SCREENSHOT_DIR=".tmp/screenshots"
+MARKER_FILE=".tmp/acceptance-marker.txt"
 
 before_all() {
     rm -rf "$SCREENSHOT_DIR"
@@ -15,13 +16,14 @@ capture_screen() {
 }
 
 open_textedit_window() {
-    osascript -e 'tell application "TextEdit" to activate' \
-              -e 'tell application "TextEdit" to make new document with properties {text:"VIRTUALSPACES_ACCEPTANCE"}' >/dev/null
-    sleep 2
+    printf 'VIRTUALSPACES_ACCEPTANCE\n' > "$MARKER_FILE"
+    open -a TextEdit "$MARKER_FILE"
+    sleep 3
 }
 
 close_textedit_windows() {
     osascript -e 'tell application "TextEdit" to close every document saving no' >/dev/null 2>&1 || true
+    rm -f "$MARKER_FILE"
 }
 
 test_init() {
