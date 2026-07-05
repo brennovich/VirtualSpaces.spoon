@@ -2,18 +2,26 @@
 
 set -e
 
+SCREENSHOT_DIR=".tmp/screenshots"
+
 before_all() {
+    rm -rf "$SCREENSHOT_DIR"
+    mkdir -p "$SCREENSHOT_DIR"
     hs -c "hs.loadSpoon('VirtualSpaces')"
 }
 
-open_finder_window() {
-    osascript -e 'tell application "Finder" to activate' \
-              -e 'tell application "Finder" to make new Finder window' >/dev/null
+capture_screen() {
+    screencapture -x "$1"
+}
+
+open_textedit_window() {
+    osascript -e 'tell application "TextEdit" to activate' \
+              -e 'tell application "TextEdit" to make new document with properties {text:"VIRTUALSPACES_ACCEPTANCE"}' >/dev/null
     sleep 2
 }
 
-close_finder_windows() {
-    osascript -e 'tell application "Finder" to close every window' >/dev/null 2>&1 || true
+close_textedit_windows() {
+    osascript -e 'tell application "TextEdit" to close every document saving no' >/dev/null 2>&1 || true
 }
 
 test_init() {
@@ -64,7 +72,7 @@ test_space_strategy_matches_os() {
 test_switch_hides_and_restores_window() {
     echo "Test: switching virtual spaces hides a window and restores its position"
 
-    open_finder_window
+    open_textedit_window
 
     hs -c "
         function findWindow(id)
@@ -78,9 +86,9 @@ test_switch_hides_and_restores_window() {
 
         local win
         for _, w in ipairs(hs.window.allWindows()) do
-            if w:application():name() == 'Finder' and w:isStandard() then win = w end
+            if w:application():name() == 'TextEdit' and w:isStandard() then win = w end
         end
-        assert(win, 'expected an open Finder window')
+        assert(win, 'expected an open TextEdit window')
 
         local frame = win:frame()
         _G.__acc = { id = win:id(), x = frame.x, y = frame.y }
@@ -89,14 +97,22 @@ test_switch_hides_and_restores_window() {
 
         print('SUCCESS')
     " || {
-        echo "FAILED: could not set up the Finder window"
-        close_finder_windows
+        echo "FAILED: could not set up the TextEdit window"
+        close_textedit_windows
         exit 1
     }
 
-    hs -c "
-        spoon.VirtualSpaces:switchToVirtualSpace(2)
+    capture_screen "$SCREENSHOT_DIR/01-space1-visible.png"
 
+    hs -c "spoon.VirtualSpaces:switchToVirtualSpace(2); print('SUCCESS')" || {
+        echo "FAILED: could not switch to virtual space 2"
+        close_textedit_windows
+        exit 1
+    }
+    sleep 1
+    capture_screen "$SCREENSHOT_DIR/02-space2-hidden.png"
+
+    hs -c "
         local win = findWindow(_G.__acc.id)
         if win then
             local frame = win:frame()
@@ -107,13 +123,19 @@ test_switch_hides_and_restores_window() {
         print('SUCCESS')
     " || {
         echo "FAILED: window was not hidden after switching away"
-        close_finder_windows
+        close_textedit_windows
         exit 1
     }
 
-    hs -c "
-        spoon.VirtualSpaces:switchToVirtualSpace(1)
+    hs -c "spoon.VirtualSpaces:switchToVirtualSpace(1); print('SUCCESS')" || {
+        echo "FAILED: could not switch back to virtual space 1"
+        close_textedit_windows
+        exit 1
+    }
+    sleep 1
+    capture_screen "$SCREENSHOT_DIR/03-space1-restored.png"
 
+    hs -c "
         local win = findWindow(_G.__acc.id)
         assert(win, 'window should be visible again after returning')
 
@@ -124,11 +146,11 @@ test_switch_hides_and_restores_window() {
         print('SUCCESS')
     " || {
         echo "FAILED: window was not restored after returning"
-        close_finder_windows
+        close_textedit_windows
         exit 1
     }
 
-    close_finder_windows
+    close_textedit_windows
 
     echo "✓ Passed"
     echo
