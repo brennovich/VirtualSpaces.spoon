@@ -93,7 +93,6 @@ Event data structure:
         focusedWindow = window    -- Currently focused window (or nil)
     }
 }
-```
 
 -- Subscribe
 spoon.VirtualSpaces:subscribe("virtualSpaceChanged", callback)
