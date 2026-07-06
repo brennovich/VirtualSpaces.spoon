@@ -63,10 +63,15 @@ function obj:init()
 
 	self.windowFilter:subscribe(hs.window.filter.windowFocused, function(window)
 		self._telemetry:span(string.format("saveWindowFocus(%d)", window:id()), function()
-			local virtualSpace = self.model:getVirtualSpaceForWindow(window:id()) or self.model:getCurrentVirtualSpace()
-			if self:_isValidWindowForVirtualSpace(window) then
-				self.model:saveFocusedWindowInVirtualSpace(virtualSpace, window:id())
+			if not self:_isValidWindowForVirtualSpace(window) then return end
+
+			if not self.model:getVirtualSpaceForWindow(window:id()) then
+				self:_assignWindowToVirtualSpace(window, self.model:getCurrentVirtualSpace())
 			end
+
+			local virtualSpace = self.model:getVirtualSpaceForWindow(window:id())
+				or self.model:getCurrentVirtualSpace()
+			self.model:saveFocusedWindowInVirtualSpace(virtualSpace, window:id())
 		end)
 	end)
 

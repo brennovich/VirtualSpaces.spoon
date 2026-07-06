@@ -8,5 +8,6 @@ TestWindowCache = require('tests/test_window_cache')
 TestGetWindowsApi = require('tests/test_get_windows_api')
 TestPublicApi = require('tests/test_public_api')
 TestWindowDestroyed = require('tests/test_window_destroyed')
+TestWindowImport = require('tests/test_window_import')
 
 os.exit(lu.LuaUnit.run())
