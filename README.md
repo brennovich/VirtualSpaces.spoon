@@ -16,6 +16,13 @@ It creates multiple logical workspaces on a single macOS desktop by managing win
 
 When switching workspaces, windows are moved between their original position and hidden at the corner of the macOS native space to simulate independent desktops. This is the strategy used by Aerospace, despite you can still see some pixels of it. But different from Aerospace, VirtualSpaces does not bring a whole i3-based tiling experience, it just provides a way to manage multiple workspaces without the overhead of macOS Spaces.
 
+### Native macOS Spaces
+
+VirtualSpaces runs on a single native macOS Space and layers its virtual workspaces on top of it. It handles native Spaces in two ways:
+
+1. **Deleted on initialization:** when `init()` runs, any extra native Spaces on the main screen are removed so the spoon operates on exactly one. The active Space at that moment is the one that is kept.
+2. **Ignored if created afterwards:** native Spaces you create later (via Mission Control) are left untouched. Windows living on them are never tracked, moved, or hidden, so you can still use manual native Spaces for any special setup. Switching to a virtual workspace while viewing one of these Spaces brings you back to the managed Space.
+
 ## Features
 
 ### Workspace Management
@@ -151,7 +158,7 @@ With debug logging enabled, you'll see timing information for operations.  Check
 ## Limitations
 
 - Supports only one screen (once I get it stable, multi-screen support may be added)
-- Create native macOS spaces (Mission Control) is not supported, I want to support this inthe future 
+- Runs on a single native macOS Space; extra Spaces are removed on `init()` and Spaces created afterwards are ignored (see [Native macOS Spaces](#native-macos-spaces))
 
 ## Contribute
 

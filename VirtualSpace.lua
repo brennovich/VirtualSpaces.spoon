@@ -41,9 +41,25 @@ end
 function VirtualSpace:setupForMainScreen()
 	return self._telemetry:span("setupForMainScreen", function()
 		self:_consolidateToSingleNativeSpace()
+		self._managedSpaceId = self._hsSpaces.activeSpaceOnScreen()
 		self:_recoverWindowsStuckAtHiddenEdge()
 		return ACTIVE, STORAGE
 	end)
+end
+
+function VirtualSpace:isOnManagedSpace()
+	return self._hsSpaces.activeSpaceOnScreen() == self._managedSpaceId
+end
+
+function VirtualSpace:managesWindow(winId)
+	local spaces = self._hsSpaces.windowSpaces(winId)
+	if not spaces then return false end
+
+	for _, spaceId in ipairs(spaces) do
+		if spaceId == self._managedSpaceId then return true end
+	end
+
+	return false
 end
 
 function VirtualSpace:getActiveSpace()

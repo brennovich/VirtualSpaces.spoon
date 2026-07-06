@@ -30,6 +30,7 @@ local function mockHsSpaces(options)
 	options = options or {}
 	local spaces = options.spaces or {1}
 	local removesEffective = options.removesEffective ~= false
+	local windowSpaces = options.windowSpaces or {}
 	local calls = {openMissionControl = 0, closeMissionControl = 0, removed = {}}
 
 	return {
@@ -37,6 +38,9 @@ local function mockHsSpaces(options)
 			local copy = {}
 			for i, id in ipairs(spaces) do copy[i] = id end
 			return {[SCREEN_UUID] = copy}
+		end,
+		windowSpaces = function(winId)
+			return windowSpaces[winId] or {options.active or spaces[1]}
 		end,
 		activeSpaceOnScreen = function() return options.active or spaces[1] end,
 		openMissionControl = function() calls.openMissionControl = calls.openMissionControl + 1 end,
@@ -263,6 +267,33 @@ function TestVirtualSpace:testStartWatchingForManualNavigationIgnoresVisibleWind
 	lu.assertEquals(callbackSpaces, {})
 end
 
+function TestVirtualSpace:testManagesWindowReturnsTrueForWindowOnManagedSpace()
+	local hsSpaces = mockHsSpaces({spaces = {1}, active = 1})
+	local space = mockedVirtualSpace({hsSpaces = hsSpaces})
+	space:setupForMainScreen()
+
+	lu.assertTrue(space:managesWindow(100))
+end
+
+function TestVirtualSpace:testManagesWindowReturnsFalseForWindowOnAnotherSpace()
+	local hsSpaces = mockHsSpaces({spaces = {1}, active = 1, windowSpaces = {[100] = {99}}})
+	local space = mockedVirtualSpace({hsSpaces = hsSpaces})
+	space:setupForMainScreen()
+
+	lu.assertFalse(space:managesWindow(100))
+end
+
+function TestVirtualSpace:testIsOnManagedSpaceReflectsActiveSpace()
+	local opts = {spaces = {1}, active = 1}
+	local space = mockedVirtualSpace({hsSpaces = mockHsSpaces(opts)})
+	space:setupForMainScreen()
+
+	lu.assertTrue(space:isOnManagedSpace())
+
+	opts.active = 99
+	lu.assertFalse(space:isOnManagedSpace())
+end
+
 function TestVirtualSpace:testMoveWindowToSpaceHandlesMissingWindow()
 	local space = mockedVirtualSpace({windows = {}})
 
@@ -413,6 +444,92 @@ function TestVirtualSpace:testInitStaysOnEmptySpaceWhenLastWindowClosedAndHidden
 
 		lu.assertEquals(VirtualSpaces.model:getCurrentVirtualSpace(), 1)
 		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"storage"})
+	end)
+end
+
+function TestVirtualSpace:testInitIgnoresWindowsOnOtherNativeSpaces()
+	local filterCallbacks = {}
+	local win1 = helpers.createHsWindow(100, "App1")
+	local win2 = helpers.createHsWindow(200, "App2")
+
+	helpers.withHsGlobal(helpers.createHsGlobal({
+		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
+		allWindows = function() return {win1} end,
+		mockWindows = {[100] = win1, [200] = win2},
+		windowSpaces = function(winId)
+			if winId == 200 then return {99} end
+			return {1}
+		end,
+		filterNew = function()
+			return {
+				subscribe = function(_, eventType, cb)
+					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
+					table.insert(filterCallbacks[eventType], cb)
+				end,
+				setCurrentSpace = function() end
+			}
+		end,
+	}), function()
+		package.loaded['init'] = nil
+		local VirtualSpaces = require('init')
+		VirtualSpaces:init()
+
+		for _, cb in ipairs(filterCallbacks[_G.hs.window.filter.windowCreated]) do
+			cb(win2)
+		end
+		VirtualSpaces:switchToVirtualSpace(2)
+
+		lu.assertNil(VirtualSpaces.model:getVirtualSpaceForWindow(200))
+		lu.assertEquals(win2:frame().x, 0)
+	end)
+end
+
+function TestVirtualSpace:testSwitchToCurrentVirtualSpaceReturnsFromForeignNativeSpace()
+	local win1 = helpers.createHsWindow(100, "App1")
+	local focusCount = 0
+	win1.focus = function() focusCount = focusCount + 1 end
+	local spaces = {activeSpace = 1, storageSpace = 2}
+
+	helpers.withHsGlobal(helpers.createHsGlobal({
+		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
+		spaces = spaces,
+		allWindows = function() return {win1} end,
+		mockWindows = {[100] = win1},
+		windowSpaces = function() return {1} end,
+		focusedWindow = function() return nil end,
+	}), function()
+		package.loaded['init'] = nil
+		local VirtualSpaces = require('init')
+		VirtualSpaces:init()
+
+		spaces.activeSpace = 99
+
+		VirtualSpaces:switchToVirtualSpace(1)
+
+		lu.assertEquals(VirtualSpaces:getCurrentVirtualSpace(), 1)
+		lu.assertEquals(focusCount, 1)
+	end)
+end
+
+function TestVirtualSpace:testSwitchToCurrentVirtualSpaceOnManagedSpaceDoesNothing()
+	local win1 = helpers.createHsWindow(100, "App1")
+	local focusCount = 0
+	win1.focus = function() focusCount = focusCount + 1 end
+
+	helpers.withHsGlobal(helpers.createHsGlobal({
+		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
+		allWindows = function() return {win1} end,
+		mockWindows = {[100] = win1},
+		windowSpaces = function() return {1} end,
+		focusedWindow = function() return nil end,
+	}), function()
+		package.loaded['init'] = nil
+		local VirtualSpaces = require('init')
+		VirtualSpaces:init()
+
+		VirtualSpaces:switchToVirtualSpace(1)
+
+		lu.assertEquals(focusCount, 0)
 	end)
 end
 

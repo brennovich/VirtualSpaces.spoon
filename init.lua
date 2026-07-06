@@ -124,6 +124,9 @@ end
 function obj:switchToVirtualSpace(virtualSpace)
 	return self._telemetry:span(string.format("switchToVirtualSpace(%d)", virtualSpace), function()
 		if virtualSpace == self.model:getCurrentVirtualSpace() then
+			if not self.spaceStrategy:isOnManagedSpace() then
+				self:_restoreWindowsFocusForVirtualSpace()
+			end
 			return
 		end
 
@@ -399,6 +402,7 @@ end
 
 function obj:_isValidWindowForVirtualSpace(window)
 	return window and window:isStandard() and not window:isFullScreen()
+		and self.spaceStrategy:managesWindow(window:id())
 end
 
 function obj:_currentVirtualSpaceIsClosing()
