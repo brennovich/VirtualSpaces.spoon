@@ -98,6 +98,10 @@ function obj:init()
 	self.spaceStrategy:startWatchingForManualNavigation(function(currentNativeSpace)
 		self._telemetry:span(string.format("spaceWatcher(%s)", tostring(currentNativeSpace)), function()
 			if currentNativeSpace == self.spaceStrategy:getStorageSpace() then
+				if self:_currentVirtualSpaceIsClosing() then
+					return
+				end
+
 				local win = hs.window.focusedWindow()
 				if not win then return end
 
@@ -411,6 +415,21 @@ end
 
 function obj:_isValidWindowForVirtualSpace(window)
 	return window and window:isStandard() and not window:isFullScreen()
+end
+
+function obj:_currentVirtualSpaceIsClosing()
+	local windowIds = self.model:getWindowsInVirtualSpace(self.model:getCurrentVirtualSpace())
+	if #windowIds == 0 then
+		return false
+	end
+
+	for _, windowId in ipairs(windowIds) do
+		if hs.window.get(windowId) then
+			return false
+		end
+	end
+
+	return true
 end
 
 return obj
