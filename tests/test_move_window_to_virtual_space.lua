@@ -1,177 +1,86 @@
 local lu = require('luaunit')
+local helpers = require('tests/test_helpers')
 
 TestMoveWindowToVirtualSpace = {}
 
+local ACTIVE = "active"
+local STORAGE = "storage"
+
 function TestMoveWindowToVirtualSpace:setUp()
-	self.spaces = {activeSpace = 1, storageSpace = 2}
-	self.movedWindows = {}
 	self.focusedWindowValue = nil
-
-	self.mockWindow = {
-		id = function() return 100 end,
-		isStandard = function() return true end,
-		isFullScreen = function() return false end,
-		isMinimized = function() return false end,
-		focus = function() end,
-		tabCount = function() return 1 end,
-		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
-		application = function() return {name = function() return "TestApp" end} end
+	self.mockWindows = {
+		[100] = helpers.createHsWindow(100, "TestApp"),
+		[200] = helpers.createHsWindow(200, "TestApp"),
 	}
 
-	_G.hs = {
-		spoons = {
-			scriptPath = function() return "./" end
-		},
-		host = {
-			operatingSystemVersion = function() return {major = 14, minor = 0, patch = 0} end
-		},
-		spaces = {
-			moveWindowToSpace = function(window, space)
-				table.insert(self.movedWindows, {window = window, space = space})
-			end,
-			activeSpaceOnScreen = function() return self.spaces.activeSpace end,
-			allSpaces = function()
-				return {["screen-123"] = {self.spaces.activeSpace, self.spaces.storageSpace}}
-			end,
-			openMissionControl = function() end,
-			removeSpace = function() end,
-			addSpaceToScreen = function() end,
-			watcher = { new = function() return {start = function() end} end }
-		},
-		screen = {
-			mainScreen = function()
-				return { getUUID = function() return "screen-123" end }
-			end
-		},
-		window = {
-			focusedWindow = function() return self.focusedWindowValue end,
-			get = function(id)
-				if id == 100 then
-					return {
-						id = function() return 100 end,
-						isStandard = function() return true end,
-						isMinimized = function() return false end,
-						focus = function() end,
-						tabCount = function() return 1 end,
-						frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
-						application = function() return {name = function() return "TestApp" end} end
-					}
-				elseif id == 200 then
-					return {
-						id = function() return 200 end,
-						isStandard = function() return true end,
-						isMinimized = function() return false end,
-						focus = function() end,
-						tabCount = function() return 1 end,
-						frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
-						application = function() return {name = function() return "TestApp" end} end
-					}
-				end
-				return nil
-			end,
-			allWindows = function() return {} end,
-			filter = {
-				new = function()
-					return {
-						subscribe = function() end,
-						setCurrentSpace = function() end
-					}
-				end,
-				windowCreated = 1,
-				windowDestroyed = 2
-			}
-		}
-	}
+	_G.hs = helpers.createHsGlobal({
+		mockWindows = self.mockWindows,
+		focusedWindow = function() return self.focusedWindowValue end,
+		windowGet = function(id) return self.mockWindows[id] end,
+	})
 
 	package.loaded['init'] = nil
-	local VirtualSpaces = require('init')
-	self.obj = VirtualSpaces
+	self.obj = require('init')
 	self.obj:init()
 end
 
 function TestMoveWindowToVirtualSpace:testMovesFocusedWindowWhenWindowParameterIsNil()
-	self.focusedWindowValue = self.mockWindow
-	self.obj:switchToVirtualSpace(1)
-	self.movedWindows = {}
+	self.focusedWindowValue = self.mockWindows[100]
 
 	self.obj:moveWindowToVirtualSpace(nil, 2)
 
-	lu.assertEquals(#self.movedWindows, 1)
-	lu.assertEquals(self.movedWindows[1].window, 100)
-	lu.assertEquals(self.movedWindows[1].space, self.spaces.storageSpace)
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {STORAGE})
 end
 
 function TestMoveWindowToVirtualSpace:testMovesExplicitWindowWhenProvided()
-	local explicitWindow = {
-		id = function() return 200 end,
-		isStandard = function() return true end,
-		isFullScreen = function() return false end,
-		isMinimized = function() return false end,
-		focus = function() end,
-		tabCount = function() return 1 end,
-		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
-		application = function() return {name = function() return "TestApp" end} end
-	}
+	self.obj:moveWindowToVirtualSpace(self.mockWindows[200], 2)
 
-	self.obj:switchToVirtualSpace(1)
-	self.movedWindows = {}
-
-	self.obj:moveWindowToVirtualSpace(explicitWindow, 2)
-
-	lu.assertEquals(#self.movedWindows, 1)
-	lu.assertEquals(self.movedWindows[1].window, 200)
-	lu.assertEquals(self.movedWindows[1].space, self.spaces.storageSpace)
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(200), {STORAGE})
 end
 
 function TestMoveWindowToVirtualSpace:testDoesNothingWhenNoFocusedWindowAndWindowIsNil()
 	self.focusedWindowValue = nil
-	self.obj:switchToVirtualSpace(1)
-	self.movedWindows = {}
 
 	self.obj:moveWindowToVirtualSpace(nil, 2)
 
-	lu.assertEquals(#self.movedWindows, 0)
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {ACTIVE})
 end
 
 function TestMoveWindowToVirtualSpace:testDoesNothingWhenVirtualSpaceIsInvalid()
-	self.focusedWindowValue = self.mockWindow
-	self.obj:switchToVirtualSpace(1)
-	self.movedWindows = {}
+	self.focusedWindowValue = self.mockWindows[100]
 
 	self.obj:moveWindowToVirtualSpace(nil, 0)
 
-	lu.assertEquals(#self.movedWindows, 0)
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {ACTIVE})
+	lu.assertNil(self.obj.model:getVirtualSpaceForWindow(100))
 end
 
 function TestMoveWindowToVirtualSpace:testDoesNothingWhenVirtualSpaceIsNil()
-	self.focusedWindowValue = self.mockWindow
-	self.obj:switchToVirtualSpace(1)
-	self.movedWindows = {}
+	self.focusedWindowValue = self.mockWindows[100]
 
 	self.obj:moveWindowToVirtualSpace(nil, nil)
 
-	lu.assertEquals(#self.movedWindows, 0)
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {ACTIVE})
+	lu.assertNil(self.obj.model:getVirtualSpaceForWindow(100))
 end
 
 function TestMoveWindowToVirtualSpace:testAssignsWindowToVirtualSpaceInModel()
-	self.focusedWindowValue = self.mockWindow
-	self.obj:switchToVirtualSpace(1)
+	self.focusedWindowValue = self.mockWindows[100]
 
 	self.obj:moveWindowToVirtualSpace(nil, 2)
 
-	local virtualSpace = self.obj.model:getVirtualSpaceForWindow(100)
-	lu.assertEquals(virtualSpace, 2)
+	lu.assertEquals(self.obj.model:getVirtualSpaceForWindow(100), 2)
 end
 
 function TestMoveWindowToVirtualSpace:testMovesToActiveSpaceWhenTargetIsCurrentVirtualSpace()
-	self.focusedWindowValue = self.mockWindow
-	self.obj:switchToVirtualSpace(1)
-	self.movedWindows = {}
+	self.focusedWindowValue = self.mockWindows[100]
+
+	self.obj:moveWindowToVirtualSpace(nil, 2)
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {STORAGE})
 
 	self.obj:moveWindowToVirtualSpace(nil, 1)
 
-	lu.assertEquals(#self.movedWindows, 1)
-	lu.assertEquals(self.movedWindows[1].space, self.spaces.activeSpace)
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {ACTIVE})
 end
 
 return TestMoveWindowToVirtualSpace

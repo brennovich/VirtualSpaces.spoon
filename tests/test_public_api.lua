@@ -321,6 +321,18 @@ function TestPublicApi:testSwitchToVirtualSpaceTriggersEventAfterSpaceChange()
 	lu.assertEquals(spaceIdDuringCallback, 2)
 end
 
+function TestPublicApi:testSwitchToVirtualSpaceHidesCurrentSpaceWindowsAndShowsTargetWindows()
+	self.obj.windowCache:add(self.mockWindows[100])
+	self.obj.windowCache:add(self.mockWindows[200])
+	self.obj.model:assignWindowToVirtualSpace(100, 1)
+	self.obj.model:assignWindowToVirtualSpace(200, 2)
+
+	self.obj:switchToVirtualSpace(2)
+
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {"storage"})
+	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(200), {"active"})
+end
+
 function TestPublicApi:testSwitchToSameVirtualSpaceDoesNotTriggerEvent()
 	local callCount = 0
 	local callback = function(eventData) callCount = callCount + 1 end

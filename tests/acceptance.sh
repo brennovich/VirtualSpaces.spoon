@@ -46,24 +46,19 @@ test_init() {
     echo
 }
 
-test_space_strategy_matches_os() {
-    echo "Test: spoon.VirtualSpaces selects the space strategy for the running OS"
+test_space_strategy() {
+    echo "Test: spoon.VirtualSpaces uses the VirtualSpace strategy"
 
     hs -c "
         spoon.VirtualSpaces:init()
 
-        local major = hs.host.operatingSystemVersion().major
         local activeSpace = spoon.VirtualSpaces.spaceStrategy:getActiveSpace()
 
-        if major >= 15 then
-            assert(activeSpace == 'emulated-active', 'Sequoia+ should use EmulatedSpace, got ' .. tostring(activeSpace))
-        else
-            assert(type(activeSpace) == 'number', 'pre-Sequoia should use NativeSpace, got ' .. tostring(activeSpace))
-        end
+        assert(activeSpace == 'active', 'expected VirtualSpace active sentinel, got ' .. tostring(activeSpace))
 
         print('SUCCESS')
     " || {
-        echo "FAILED: space strategy selection test failed"
+        echo "FAILED: space strategy test failed"
         exit 1
     }
 
@@ -160,7 +155,7 @@ test_switch_hides_and_restores_window() {
 
 before_all
 test_init
-test_space_strategy_matches_os
+test_space_strategy
 test_switch_hides_and_restores_window
 
 echo "All acceptance tests passed!"

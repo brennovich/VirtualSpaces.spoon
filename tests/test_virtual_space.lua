@@ -1,9 +1,9 @@
 local lu = require('luaunit')
 local helpers = require('tests/test_helpers')
 
-local EmulatedSpace = require('EmulatedSpace')
+local VirtualSpace = require('VirtualSpace')
 
-TestEmulatedSpace = {}
+TestVirtualSpace = {}
 
 local SCREEN_FULL_FRAME = {x = 0, y = 0, w = 1792, h = 1120}
 
@@ -24,15 +24,49 @@ local function mockWindow(id, frame, opts)
 	}
 end
 
-local function mockedEmulatedSpace(options)
+local SCREEN_UUID = "screen-uuid"
+
+local function mockHsSpaces(options)
+	options = options or {}
+	local spaces = options.spaces or {1}
+	local removesEffective = options.removesEffective ~= false
+	local calls = {openMissionControl = 0, closeMissionControl = 0, removed = {}}
+
+	return {
+		allSpaces = function()
+			local copy = {}
+			for i, id in ipairs(spaces) do copy[i] = id end
+			return {[SCREEN_UUID] = copy}
+		end,
+		activeSpaceOnScreen = function() return options.active or spaces[1] end,
+		openMissionControl = function() calls.openMissionControl = calls.openMissionControl + 1 end,
+		closeMissionControl = function() calls.closeMissionControl = calls.closeMissionControl + 1 end,
+		removeSpace = function(spaceID)
+			table.insert(calls.removed, spaceID)
+			if not removesEffective then return end
+			for i, id in ipairs(spaces) do
+				if id == spaceID then
+					table.remove(spaces, i)
+					break
+				end
+			end
+		end,
+		_spaces = spaces,
+		_calls = calls,
+	}
+end
+
+local function mockedVirtualSpace(options)
 	options = options or {}
 	local windows = options.windows or {}
 	local allWindows = options.allWindows or {}
 	local filterSubscriptions = options.filterSubscriptions or {}
+	local hsSpaces = options.hsSpaces or mockHsSpaces()
 
 	local mockScreen = {
 		mainScreen = function()
 			return {
+				getUUID = function() return SCREEN_UUID end,
 				fullFrame = function() return SCREEN_FULL_FRAME end,
 				frame = function() return SCREEN_FULL_FRAME end,
 			}
@@ -50,19 +84,21 @@ local function mockedEmulatedSpace(options)
 		end
 	}
 
-	return EmulatedSpace.new({
+	return VirtualSpace.new({
 		windowGetter = function(id) return windows[id] end,
 		hsWindow = mockHsWindow,
 		hsScreen = mockScreen,
+		hsSpaces = hsSpaces,
 		windowFilter = mockWindowFilter,
 	})
 end
 
-function TestEmulatedSpace:testNew()
-	local space = EmulatedSpace.new({
+function TestVirtualSpace:testNew()
+	local space = VirtualSpace.new({
 		windowGetter = function() end,
 		hsWindow = {},
 		hsScreen = {},
+		hsSpaces = {},
 		telemetry = {}
 	})
 
@@ -70,20 +106,21 @@ function TestEmulatedSpace:testNew()
 	lu.assertNotNil(space._windowGetter)
 	lu.assertEquals(space._hsWindow, {})
 	lu.assertEquals(space._hsScreen, {})
+	lu.assertEquals(space._hsSpaces, {})
 	lu.assertEquals(space._telemetry, {})
 end
 
-function TestEmulatedSpace:testNewWithDefaults()
+function TestVirtualSpace:testNewWithDefaults()
 	helpers.withHsGlobal({}, function()
-		local space = EmulatedSpace.new()
+		local space = VirtualSpace.new()
 
 		lu.assertNotNil(space)
 		lu.assertNotNil(space._telemetry)
 	end)
 end
 
-function TestEmulatedSpace:testGetActiveSpaceAndStorageSpaceReturnSentinels()
-	local space = mockedEmulatedSpace()
+function TestVirtualSpace:testGetActiveSpaceAndStorageSpaceReturnSentinels()
+	local space = mockedVirtualSpace()
 
 	local active = space:getActiveSpace()
 	local storage = space:getStorageSpace()
@@ -96,8 +133,8 @@ function TestEmulatedSpace:testGetActiveSpaceAndStorageSpaceReturnSentinels()
 	lu.assertEquals(space:getStorageSpace(), storage)
 end
 
-function TestEmulatedSpace:testSetupForMainScreenReturnsSentinels()
-	local space = mockedEmulatedSpace()
+function TestVirtualSpace:testSetupForMainScreenReturnsSentinels()
+	local space = mockedVirtualSpace()
 
 	local active, storage = space:setupForMainScreen()
 
@@ -105,30 +142,10 @@ function TestEmulatedSpace:testSetupForMainScreenReturnsSentinels()
 	lu.assertEquals(storage, space:getStorageSpace())
 end
 
-function TestEmulatedSpace:testGetCurrentNativeSpaceAlwaysReturnsActiveSentinel()
-	local space = mockedEmulatedSpace()
-
-	lu.assertEquals(space:getCurrentNativeSpace(), space:getActiveSpace())
-
-	space:moveWindowToSpace(100, space:getStorageSpace())
-	lu.assertEquals(space:getCurrentNativeSpace(), space:getActiveSpace())
-end
-
-function TestEmulatedSpace:testUpdateSpacesIsNoOp()
-	local space = mockedEmulatedSpace()
-	local activeBefore = space:getActiveSpace()
-	local storageBefore = space:getStorageSpace()
-
-	space:updateSpaces("anything", "else")
-
-	lu.assertEquals(space:getActiveSpace(), activeBefore)
-	lu.assertEquals(space:getStorageSpace(), storageBefore)
-end
-
-function TestEmulatedSpace:testMoveWindowToSpaceCapturesFrameAndHidesWindow()
+function TestVirtualSpace:testMoveWindowToSpaceCapturesFrameAndHidesWindow()
 	local originalFrame = {x = 100, y = 100, w = 800, h = 600}
 	local win = mockWindow(100, originalFrame)
-	local space = mockedEmulatedSpace({windows = {[100] = win}})
+	local space = mockedVirtualSpace({windows = {[100] = win}})
 
 	space:moveWindowToSpace(100, space:getStorageSpace())
 
@@ -146,10 +163,10 @@ function TestEmulatedSpace:testMoveWindowToSpaceCapturesFrameAndHidesWindow()
 	lu.assertEquals(restoredFrame, originalFrame)
 end
 
-function TestEmulatedSpace:testMoveWindowToSpaceIsIdempotentOnDoubleHide()
+function TestVirtualSpace:testMoveWindowToSpaceIsIdempotentOnDoubleHide()
 	local originalFrame = {x = 100, y = 100, w = 800, h = 600}
 	local win = mockWindow(100, originalFrame)
-	local space = mockedEmulatedSpace({windows = {[100] = win}})
+	local space = mockedVirtualSpace({windows = {[100] = win}})
 
 	space:moveWindowToSpace(100, space:getStorageSpace())
 	space:moveWindowToSpace(100, space:getStorageSpace())
@@ -162,10 +179,10 @@ function TestEmulatedSpace:testMoveWindowToSpaceIsIdempotentOnDoubleHide()
 	lu.assertEquals(win._setFrameCalls[2], originalFrame)
 end
 
-function TestEmulatedSpace:testMoveWindowToSpaceIsIdempotentOnDoubleShow()
+function TestVirtualSpace:testMoveWindowToSpaceIsIdempotentOnDoubleShow()
 	local originalFrame = {x = 100, y = 100, w = 800, h = 600}
 	local win = mockWindow(100, originalFrame)
-	local space = mockedEmulatedSpace({windows = {[100] = win}})
+	local space = mockedVirtualSpace({windows = {[100] = win}})
 
 	space:moveWindowToSpace(100, space:getStorageSpace())
 	space:moveWindowToSpace(100, space:getActiveSpace())
@@ -174,10 +191,10 @@ function TestEmulatedSpace:testMoveWindowToSpaceIsIdempotentOnDoubleShow()
 	lu.assertEquals(#win._setFrameCalls, 2)
 end
 
-function TestEmulatedSpace:testMoveWindowToSpaceSkipsMinimizedWindows()
+function TestVirtualSpace:testMoveWindowToSpaceSkipsMinimizedWindows()
 	local originalFrame = {x = 100, y = 100, w = 800, h = 600}
 	local win = mockWindow(100, originalFrame, {isMinimized = true})
-	local space = mockedEmulatedSpace({windows = {[100] = win}})
+	local space = mockedVirtualSpace({windows = {[100] = win}})
 
 	space:moveWindowToSpace(100, space:getStorageSpace())
 
@@ -185,10 +202,10 @@ function TestEmulatedSpace:testMoveWindowToSpaceSkipsMinimizedWindows()
 	lu.assertEquals(space:windowSpaces(100), {space:getActiveSpace()})
 end
 
-function TestEmulatedSpace:testWindowSpacesReflectsHiddenState()
+function TestVirtualSpace:testWindowSpacesReflectsHiddenState()
 	local originalFrame = {x = 100, y = 100, w = 800, h = 600}
 	local win = mockWindow(100, originalFrame)
-	local space = mockedEmulatedSpace({windows = {[100] = win}})
+	local space = mockedVirtualSpace({windows = {[100] = win}})
 
 	lu.assertEquals(space:windowSpaces(100), {space:getActiveSpace()})
 
@@ -199,9 +216,9 @@ function TestEmulatedSpace:testWindowSpacesReflectsHiddenState()
 	lu.assertEquals(space:windowSpaces(100), {space:getActiveSpace()})
 end
 
-function TestEmulatedSpace:testForgetWindowClearsHiddenState()
+function TestVirtualSpace:testForgetWindowClearsHiddenState()
 	local win = mockWindow(100, {x = 100, y = 100, w = 800, h = 600})
-	local space = mockedEmulatedSpace({windows = {[100] = win}})
+	local space = mockedVirtualSpace({windows = {[100] = win}})
 
 	space:moveWindowToSpace(100, space:getStorageSpace())
 	space:forgetWindow(100)
@@ -209,10 +226,10 @@ function TestEmulatedSpace:testForgetWindowClearsHiddenState()
 	lu.assertEquals(space:windowSpaces(100), {space:getActiveSpace()})
 end
 
-function TestEmulatedSpace:testStartWatchingForManualNavigationFiresOnHiddenWindowFocus()
+function TestVirtualSpace:testStartWatchingForManualNavigationFiresOnHiddenWindowFocus()
 	local win = mockWindow(100, {x = 100, y = 100, w = 800, h = 600})
 	local filterSubscriptions = {}
-	local space = mockedEmulatedSpace({
+	local space = mockedVirtualSpace({
 		windows = {[100] = win},
 		filterSubscriptions = filterSubscriptions
 	})
@@ -228,10 +245,10 @@ function TestEmulatedSpace:testStartWatchingForManualNavigationFiresOnHiddenWind
 	lu.assertEquals(callbackSpaces, {space:getStorageSpace()})
 end
 
-function TestEmulatedSpace:testStartWatchingForManualNavigationIgnoresVisibleWindowFocus()
+function TestVirtualSpace:testStartWatchingForManualNavigationIgnoresVisibleWindowFocus()
 	local win = mockWindow(100, {x = 100, y = 100, w = 800, h = 600})
 	local filterSubscriptions = {}
-	local space = mockedEmulatedSpace({
+	local space = mockedVirtualSpace({
 		windows = {[100] = win},
 		filterSubscriptions = filterSubscriptions
 	})
@@ -246,8 +263,8 @@ function TestEmulatedSpace:testStartWatchingForManualNavigationIgnoresVisibleWin
 	lu.assertEquals(callbackSpaces, {})
 end
 
-function TestEmulatedSpace:testMoveWindowToSpaceHandlesMissingWindow()
-	local space = mockedEmulatedSpace({windows = {}})
+function TestVirtualSpace:testMoveWindowToSpaceHandlesMissingWindow()
+	local space = mockedVirtualSpace({windows = {}})
 
 	local success = pcall(function()
 		space:moveWindowToSpace(999, space:getStorageSpace())
@@ -256,11 +273,11 @@ function TestEmulatedSpace:testMoveWindowToSpaceHandlesMissingWindow()
 	lu.assertTrue(success)
 end
 
-function TestEmulatedSpace:testSetupForMainScreenRecoversWindowsStuckInHiddenCorner()
+function TestVirtualSpace:testSetupForMainScreenRecoversWindowsStuckInHiddenCorner()
 	local stuckWindow = mockWindow(200, {x = 1791, y = 100, w = 800, h = 600})
 	local normalWindow = mockWindow(300, {x = 100, y = 100, w = 800, h = 600})
 
-	local space = mockedEmulatedSpace({
+	local space = mockedVirtualSpace({
 		allWindows = {stuckWindow, normalWindow}
 	})
 
@@ -273,7 +290,7 @@ function TestEmulatedSpace:testSetupForMainScreenRecoversWindowsStuckInHiddenCor
 	lu.assertEquals(#normalWindow._setFrameCalls, 0)
 end
 
-function TestEmulatedSpace:testInitPicksEmulatedSpace()
+function TestVirtualSpace:testInitPicksVirtualSpace()
 	helpers.withHsGlobal(helpers.createHsGlobal({
 		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end
 	}), function()
@@ -281,25 +298,12 @@ function TestEmulatedSpace:testInitPicksEmulatedSpace()
 		local VirtualSpaces = require('init')
 		VirtualSpaces:init()
 
-		lu.assertEquals(VirtualSpaces.spaceStrategy:getActiveSpace(), "emulated-active")
-		lu.assertEquals(VirtualSpaces.spaceStrategy:getStorageSpace(), "emulated-storage")
+		lu.assertEquals(VirtualSpaces.spaceStrategy:getActiveSpace(), "active")
+		lu.assertEquals(VirtualSpaces.spaceStrategy:getStorageSpace(), "storage")
 	end)
 end
 
-function TestEmulatedSpace:testInitPicksNativeSpaceOnPreSequoia()
-	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 14, minor = 0, patch = 0} end
-	}), function()
-		package.loaded['init'] = nil
-		local VirtualSpaces = require('init')
-		VirtualSpaces:init()
-
-		lu.assertEquals(VirtualSpaces.spaceStrategy:getActiveSpace(), 1)
-		lu.assertEquals(VirtualSpaces.spaceStrategy:getStorageSpace(), 2)
-	end)
-end
-
-function TestEmulatedSpace:testInitForgetsDestroyedHiddenWindows()
+function TestVirtualSpace:testInitForgetsDestroyedHiddenWindows()
 	local filterCallbacks = {}
 	local win = helpers.createHsWindow(100, "App1")
 
@@ -319,15 +323,15 @@ function TestEmulatedSpace:testInitForgetsDestroyedHiddenWindows()
 		VirtualSpaces:init()
 
 		VirtualSpaces:moveWindowToVirtualSpace(win, 2)
-		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(100), {"emulated-storage"})
+		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(100), {"storage"})
 
 		filterCallbacks[_G.hs.window.filter.windowDestroyed](win)
 
-		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(100), {"emulated-active"})
+		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(100), {"active"})
 	end)
 end
 
-function TestEmulatedSpace:testInitSwitchesVirtualSpaceWhenHiddenWindowFocused()
+function TestVirtualSpace:testInitSwitchesVirtualSpaceWhenHiddenWindowFocused()
 	local filterCallbacks = {}
 	local win1 = helpers.createHsWindow(100, "App1")
 	local win2 = helpers.createHsWindow(200, "App2")
@@ -354,7 +358,7 @@ function TestEmulatedSpace:testInitSwitchesVirtualSpaceWhenHiddenWindowFocused()
 
 		focusedWindow = win1
 		VirtualSpaces:moveWindowToVirtualSpace(win2, 2)
-		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"emulated-storage"})
+		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"storage"})
 
 		focusedWindow = win2
 		for _, cb in ipairs(filterCallbacks[_G.hs.window.filter.windowFocused]) do
@@ -362,12 +366,12 @@ function TestEmulatedSpace:testInitSwitchesVirtualSpaceWhenHiddenWindowFocused()
 		end
 
 		lu.assertEquals(VirtualSpaces.model:getCurrentVirtualSpace(), 2)
-		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"emulated-active"})
-		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(100), {"emulated-storage"})
+		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"active"})
+		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(100), {"storage"})
 	end)
 end
 
-function TestEmulatedSpace:testInitStaysOnEmptySpaceWhenLastWindowClosedAndHiddenWindowAutoFocused()
+function TestVirtualSpace:testInitStaysOnEmptySpaceWhenLastWindowClosedAndHiddenWindowAutoFocused()
 	local filterCallbacks = {}
 	local win1 = helpers.createHsWindow(100, "App1")
 	local win2 = helpers.createHsWindow(200, "App2")
@@ -408,11 +412,11 @@ function TestEmulatedSpace:testInitStaysOnEmptySpaceWhenLastWindowClosedAndHidde
 		end
 
 		lu.assertEquals(VirtualSpaces.model:getCurrentVirtualSpace(), 1)
-		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"emulated-storage"})
+		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"storage"})
 	end)
 end
 
-function TestEmulatedSpace:testInitHidesWindowsThroughWindowCache()
+function TestVirtualSpace:testInitHidesWindowsThroughWindowCache()
 	local win = helpers.createHsWindow(100, "App1")
 	local windowGetCalls = 0
 
@@ -438,4 +442,46 @@ function TestEmulatedSpace:testInitHidesWindowsThroughWindowCache()
 	end)
 end
 
-return TestEmulatedSpace
+function TestVirtualSpace:testSetupConsolidatesMultipleNativeSpacesToOne()
+	local hsSpaces = mockHsSpaces({spaces = {1, 2, 3}, active = 1})
+	local space = mockedVirtualSpace({hsSpaces = hsSpaces})
+
+	space:setupForMainScreen()
+
+	lu.assertEquals(hsSpaces._calls.openMissionControl, 1)
+	lu.assertEquals(hsSpaces._calls.closeMissionControl, 1)
+	lu.assertEquals(hsSpaces._calls.removed, {2, 3})
+	lu.assertEquals(hsSpaces._spaces, {1})
+end
+
+function TestVirtualSpace:testSetupLeavesSingleNativeSpaceUntouched()
+	local hsSpaces = mockHsSpaces({spaces = {1}, active = 1})
+	local space = mockedVirtualSpace({hsSpaces = hsSpaces})
+
+	space:setupForMainScreen()
+
+	lu.assertEquals(hsSpaces._calls.openMissionControl, 0)
+	lu.assertEquals(hsSpaces._calls.closeMissionControl, 0)
+	lu.assertEquals(hsSpaces._calls.removed, {})
+end
+
+function TestVirtualSpace:testSetupErrorsWhenConsolidationFails()
+	local hsSpaces = mockHsSpaces({spaces = {1, 2, 3}, active = 1, removesEffective = false})
+	local space = mockedVirtualSpace({hsSpaces = hsSpaces})
+
+	local success = pcall(function() space:setupForMainScreen() end)
+
+	lu.assertFalse(success)
+end
+
+function TestVirtualSpace:testSetupErrorsWhenSpacesUnavailableForMainScreen()
+	local hsSpaces = mockHsSpaces()
+	hsSpaces.allSpaces = function() return {} end
+	local space = mockedVirtualSpace({hsSpaces = hsSpaces})
+
+	local success = pcall(function() space:setupForMainScreen() end)
+
+	lu.assertFalse(success)
+end
+
+return TestVirtualSpace

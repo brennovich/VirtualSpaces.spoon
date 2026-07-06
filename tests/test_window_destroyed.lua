@@ -60,7 +60,8 @@ function TestWindowDestroyed:setUp()
 		filterNew = function()
 			return {
 				subscribe = function(_, eventType, cb)
-					filterCallbacks[eventType] = cb
+					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
+					table.insert(filterCallbacks[eventType], cb)
 				end,
 				setCurrentSpace = function() end
 			}
@@ -81,37 +82,43 @@ function TestWindowDestroyed:setUp()
 	self.obj:init()
 end
 
-function TestWindowDestroyed:testNonTabbedWindowDestroyedRestoresFocus()
-	self.filterCallbacks[1](self.window1)
-	self.filterCallbacks[3](self.window1)
-	self.filterCallbacks[1](self.window2)
+function TestWindowDestroyed:_emit(eventType, window)
+	for _, cb in ipairs(self.filterCallbacks[eventType] or {}) do
+		cb(window)
+	end
+end
 
-	self.filterCallbacks[2](self.window2)
+function TestWindowDestroyed:testNonTabbedWindowDestroyedRestoresFocus()
+	self:_emit(1, self.window1)
+	self:_emit(3, self.window1)
+	self:_emit(1, self.window2)
+
+	self:_emit(2, self.window2)
 
 	lu.assertTrue(table.contains(self.focusCalls, 100))
 end
 
 function TestWindowDestroyed:testTabbedWindowDestroyedDoesNotRestoreFocus()
-	self.filterCallbacks[1](self.window3a)
-	self.filterCallbacks[3](self.window3a)
-	self.filterCallbacks[1](self.window3b)
-	self.filterCallbacks[3](self.window3b)
-	self.filterCallbacks[1](self.window1)
+	self:_emit(1, self.window3a)
+	self:_emit(3, self.window3a)
+	self:_emit(1, self.window3b)
+	self:_emit(3, self.window3b)
+	self:_emit(1, self.window1)
 
-	self.filterCallbacks[2](self.window3b)
+	self:_emit(2, self.window3b)
 
 	lu.assertEquals(self.focusCalls, {})
 end
 
 function TestWindowDestroyed:testTabSiblingFocusPreservedWhenSeparateWindowClosed()
-	self.filterCallbacks[1](self.window3a)
-	self.filterCallbacks[1](self.window3b)
-	self.filterCallbacks[3](self.window3a)
-	self.filterCallbacks[1](self.window1)
-	self.filterCallbacks[3](self.window1)
+	self:_emit(1, self.window3a)
+	self:_emit(1, self.window3b)
+	self:_emit(3, self.window3a)
+	self:_emit(1, self.window1)
+	self:_emit(3, self.window1)
 
 	self.mockFocusedWindow = self.window3b
-	self.filterCallbacks[2](self.window1)
+	self:_emit(2, self.window1)
 
 	lu.assertEquals(self.obj.model:getFocusedWindowForVirtualSpace(1), 301)
 	lu.assertFalse(table.contains(self.focusCalls, 300))

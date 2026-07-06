@@ -13,21 +13,23 @@
 -- line a right-edge-only push would leave running down the whole screen.
 local Telemetry = require("Telemetry")
 
-local EmulatedSpace = {}
-EmulatedSpace.__index = EmulatedSpace
+local VirtualSpace = {}
+VirtualSpace.__index = VirtualSpace
 
-local ACTIVE = "emulated-active"
-local STORAGE = "emulated-storage"
+local ACTIVE = "active"
+local STORAGE = "storage"
 local HIDDEN_EDGE_EPSILON = 1
 local HIDDEN_EDGE_DETECTION_MARGIN = 10
+local TARGET_NATIVE_SPACE_COUNT = 1
 
-function EmulatedSpace.new(deps)
+function VirtualSpace.new(deps)
 	deps = deps or {}
-	local self = setmetatable({}, EmulatedSpace)
+	local self = setmetatable({}, VirtualSpace)
 
 	self._windowGetter = deps.windowGetter or function(winId) return hs.window.get(winId) end
 	self._hsWindow = deps.hsWindow or hs.window
 	self._hsScreen = deps.hsScreen or hs.screen
+	self._hsSpaces = deps.hsSpaces or hs.spaces
 	self._windowFilter = deps.windowFilter
 	self._telemetry = deps.telemetry or Telemetry.NoOp.new()
 
@@ -36,29 +38,23 @@ function EmulatedSpace.new(deps)
 	return self
 end
 
-function EmulatedSpace:setupForMainScreen()
+function VirtualSpace:setupForMainScreen()
 	return self._telemetry:span("setupForMainScreen", function()
+		self:_consolidateToSingleNativeSpace()
 		self:_recoverWindowsStuckAtHiddenEdge()
 		return ACTIVE, STORAGE
 	end)
 end
 
-function EmulatedSpace:getActiveSpace()
+function VirtualSpace:getActiveSpace()
 	return ACTIVE
 end
 
-function EmulatedSpace:getStorageSpace()
+function VirtualSpace:getStorageSpace()
 	return STORAGE
 end
 
-function EmulatedSpace:updateSpaces(activeSpace, storageSpace)
-end
-
-function EmulatedSpace:getCurrentNativeSpace()
-	return ACTIVE
-end
-
-function EmulatedSpace:moveWindowToSpace(winId, spaceId)
+function VirtualSpace:moveWindowToSpace(winId, spaceId)
 	return self._telemetry:span(string.format("moveWindowToSpace(%s)", tostring(winId)), function()
 		local win = self._windowGetter(winId)
 		if not win or win:isMinimized() then return end
@@ -76,7 +72,7 @@ function EmulatedSpace:moveWindowToSpace(winId, spaceId)
 	end)
 end
 
-function EmulatedSpace:windowSpaces(winId)
+function VirtualSpace:windowSpaces(winId)
 	if self._hiddenWindowFrames[winId] then
 		return {STORAGE}
 	end
@@ -84,7 +80,7 @@ function EmulatedSpace:windowSpaces(winId)
 	return {ACTIVE}
 end
 
-function EmulatedSpace:startWatchingForManualNavigation(callback)
+function VirtualSpace:startWatchingForManualNavigation(callback)
 	self._windowFilter:subscribe(self._hsWindow.filter.windowFocused, function(window)
 		if self._hiddenWindowFrames[window:id()] then
 			callback(STORAGE)
@@ -93,11 +89,50 @@ function EmulatedSpace:startWatchingForManualNavigation(callback)
 	return self._windowFilter
 end
 
-function EmulatedSpace:forgetWindow(winId)
+function VirtualSpace:forgetWindow(winId)
 	self._hiddenWindowFrames[winId] = nil
 end
 
-function EmulatedSpace:_hiddenFrameFor(frame)
+function VirtualSpace:_consolidateToSingleNativeSpace()
+	local mainScreen = self._hsScreen.mainScreen():getUUID()
+	local spaces = self:_spacesForScreen(mainScreen)
+
+	if #spaces == TARGET_NATIVE_SPACE_COUNT then return end
+
+	local activeSpace = self._hsSpaces.activeSpaceOnScreen()
+	self._hsSpaces.openMissionControl()
+
+	for _, spaceID in ipairs(spaces) do
+		if spaceID ~= activeSpace then
+			self._telemetry:span(string.format("removeSpace(%s)", tostring(spaceID)), function()
+				self._hsSpaces.removeSpace(spaceID, false)
+			end)
+		end
+	end
+
+	local refreshedSpaces = self:_spacesForScreen(mainScreen)
+	if #refreshedSpaces ~= TARGET_NATIVE_SPACE_COUNT then
+		error(string.format(
+			"VirtualSpaces setup failed: expected exactly %d native Space after setup, but found %d. Try reloading Hammerspoon.",
+			TARGET_NATIVE_SPACE_COUNT, #refreshedSpaces
+		))
+	end
+
+	self._hsSpaces.closeMissionControl()
+end
+
+function VirtualSpace:_spacesForScreen(mainScreen)
+	local spaces = self._hsSpaces.allSpaces()[mainScreen]
+	if not spaces then
+		error(
+			"VirtualSpaces setup failed: unable to query spaces for the main screen. " ..
+			"Check System Settings > Privacy & Security > Accessibility."
+		)
+	end
+	return spaces
+end
+
+function VirtualSpace:_hiddenFrameFor(frame)
 	local screenFrame = self._hsScreen.mainScreen():fullFrame()
 
 	local hiddenX = screenFrame.x + screenFrame.w - HIDDEN_EDGE_EPSILON
@@ -106,7 +141,7 @@ function EmulatedSpace:_hiddenFrameFor(frame)
 	return {x = hiddenX, y = hiddenY, w = frame.w, h = frame.h}
 end
 
-function EmulatedSpace:_recoverWindowsStuckAtHiddenEdge()
+function VirtualSpace:_recoverWindowsStuckAtHiddenEdge()
 	local screenFrame = self._hsScreen.mainScreen():fullFrame()
 	local visibleFrame = self._hsScreen.mainScreen():frame()
 	local hiddenXThreshold = screenFrame.x + screenFrame.w - HIDDEN_EDGE_EPSILON - HIDDEN_EDGE_DETECTION_MARGIN
@@ -129,4 +164,4 @@ function EmulatedSpace:_recoverWindowsStuckAtHiddenEdge()
 	end
 end
 
-return EmulatedSpace
+return VirtualSpace

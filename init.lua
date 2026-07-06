@@ -2,7 +2,7 @@
 ---
 --- VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.
 ---
---- It creates multiple logical workspaces on a single macOS desktop by managing window visibility across two macOS spaces: one active and one for storage. Its goal is to provide a instant switching experience between workspaces without the overhead of managing multiple physical desktops and superfulous macOS transition effects.
+--- It creates multiple logical workspaces on a single macOS desktop by managing window visibility: windows belonging to the current workspace stay in place while windows from other workspaces are hidden off-screen. Its goal is to provide a instant switching experience between workspaces without the overhead of managing multiple physical desktops and superfulous macOS transition effects.
 ---
 --- --- Download: [VirtualSpaces.spoon.zip](https://github.com/brennovich/VirtualSpaces.spoon/releases/latest/download/VirtualSpaces.spoon.zip)
 
@@ -10,14 +10,10 @@ local spoonPath = hs.spoons.scriptPath()
 package.path = package.path .. ";" .. spoonPath .. "?.lua"
 
 local Window = require("Window")
-local WindowsSort = require("WindowsSort")
 local SpacesModel = require("SpacesModel")
-local NativeSpace = require("NativeSpace")
-local EmulatedSpace = require("EmulatedSpace")
+local VirtualSpace = require("VirtualSpace")
 local Telemetry = require("Telemetry")
 local WindowCache = require("WindowCache")
-
-local SEQUOIA_MAJOR_VERSION = 15
 
 local obj = {}
 obj.__index = obj
@@ -29,7 +25,7 @@ obj.license = "MIT"
 
 --- VirtualSpaces:init()
 --- Method
---- Initializes the VirtualSpaces spoon. Sets up two native macOS spaces, configures window tracking, and assigns existing windows to virtual space 1.
+--- Initializes the VirtualSpaces spoon. Sets up the space strategy, configures window tracking, and assigns existing windows to virtual space 1.
 ---
 --- Parameters:
 --- * None
@@ -38,7 +34,7 @@ obj.license = "MIT"
 --- * The VirtualSpaces object
 ---
 --- Notes:
---- * Ensures exactly two native macOS spaces exist on the main screen
+--- * Hides windows from other virtual spaces off-screen and restores them on switch
 --- * Automatically assigns all existing windows to virtual space 1
 --- * Sets up window filters to track window creation and destruction
 --- * Implements space watcher to detect manual navigation to storage space
@@ -47,23 +43,13 @@ function obj:init()
 	self.windowCache = WindowCache.new(self._telemetry)
 	self.windowFilter = hs.window.filter.new()
 
-	if hs.host.operatingSystemVersion().major >= SEQUOIA_MAJOR_VERSION then
-		self.spaceStrategy = EmulatedSpace.new({
-			telemetry = self._telemetry,
-			windowGetter = function(winId) return self.windowCache:get(winId) end,
-			windowFilter = self.windowFilter,
-		})
-	else
-		self.spaceStrategy = NativeSpace.new({telemetry = self._telemetry})
-	end
-
-	local activeSpace, storageSpace = self.spaceStrategy:setupForMainScreen()
-
-	self._windowSorter = WindowsSort.new(activeSpace, storageSpace, {
+	self.spaceStrategy = VirtualSpace.new({
 		telemetry = self._telemetry,
-		windowMoverFn = function(winId, spaceId) return self.spaceStrategy:moveWindowToSpace(winId, spaceId) end,
-		windowSpaceGetter = function(winId) return self.spaceStrategy:windowSpaces(winId) end,
+		windowGetter = function(winId) return self.windowCache:get(winId) end,
+		windowFilter = self.windowFilter,
 	})
+
+	self.spaceStrategy:setupForMainScreen()
 
 	self.model = SpacesModel.new()
 
@@ -107,7 +93,7 @@ function obj:init()
 
 				local windowVirtualSpace = self.model:getVirtualSpaceForWindow(win:id()) or 1
 
-				self:_switchSpaces(windowVirtualSpace, self.spaceStrategy:getCurrentNativeSpace())
+				self:_switchSpaces(windowVirtualSpace)
 			end
 		end)
 	end)
@@ -136,18 +122,12 @@ end
 --- * Moves them to active space and restores focus to last focused window
 --- * Does nothing if already on the target virtual space
 function obj:switchToVirtualSpace(virtualSpace)
-	if not virtualSpace or virtualSpace < 1 then
-		return
-	end
-
 	return self._telemetry:span(string.format("switchToVirtualSpace(%d)", virtualSpace), function()
-		local currentNativeSpace = self.spaceStrategy:getCurrentNativeSpace()
-
-		if virtualSpace == self.model:getCurrentVirtualSpace() and currentNativeSpace == self.spaceStrategy:getActiveSpace() then
+		if virtualSpace == self.model:getCurrentVirtualSpace() then
 			return
 		end
 
-		self:_switchSpaces(virtualSpace, currentNativeSpace)
+		self:_switchSpaces(virtualSpace)
 		self:_restoreWindowsFocusForVirtualSpace()
 
 		self:_dispatchEvent("virtualSpaceChanged")
@@ -228,7 +208,7 @@ end
 --- Returns:
 --- * Current virtual space ID (1-4)
 function obj:getCurrentVirtualSpace()
-	return self.model._currentVirtualSpace or 1
+	return self.model._currentVirtualSpace
 end
 
 --- VirtualSpaces:getCurrentVirtualSpaceMetadata()
@@ -367,7 +347,7 @@ function obj:instrument(logLevel)
 	self._telemetry:setLogLevel(logLevel)
 end
 
-function obj:_switchSpaces(virtualSpace, currentNativeSpace)
+function obj:_switchSpaces(virtualSpace)
 	self._telemetry:span("captureCurrentFocusBeforeSwitch", function()
 		local currentFocused = hs.window.focusedWindow()
 		if currentFocused and self:_isValidWindowForVirtualSpace(currentFocused) then
@@ -375,14 +355,18 @@ function obj:_switchSpaces(virtualSpace, currentNativeSpace)
 		end
 	end)
 
-	self.spaceStrategy:updateSpaces(
-		self._windowSorter:mapWindowsToNativeSpacesFromCurrentNativeSpace(
-			self.model:categorizeWindowsForTransition(
-				virtualSpace, self.model:getCurrentVirtualSpace()
-			),
-			currentNativeSpace
-		)
-	)
+	self._telemetry:span("mapWindowsToNativeSpaces", function()
+		local categorized = self.model:categorizeWindowsForTransition(
+			virtualSpace, self.model:getCurrentVirtualSpace())
+
+		for _, winId in ipairs(categorized.toActive) do
+			self.spaceStrategy:moveWindowToSpace(winId, self.spaceStrategy:getActiveSpace())
+		end
+
+		for _, winId in ipairs(categorized.toStorage) do
+			self.spaceStrategy:moveWindowToSpace(winId, self.spaceStrategy:getStorageSpace())
+		end
+	end)
 
 	self.model:setCurrentVirtualSpace(virtualSpace)
 end

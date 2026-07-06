@@ -11,35 +11,6 @@ function table.contains(tbl, element)
 	return false
 end
 
-function TestHelpers.createBasicDeps(overrides)
-	overrides = overrides or {}
-	return {
-		windowMoverFn = overrides.windowMoverFn or function() end,
-		windowSpaceGetter = overrides.windowSpaceGetter or function() return {} end,
-		telemetry = overrides.telemetry
-	}
-end
-
-function TestHelpers.createMoveTracker()
-	local moves = {}
-	return {
-		record = function(winId, spaceId)
-			table.insert(moves, {winId = winId, spaceId = spaceId})
-		end,
-		getMoves = function() return moves end,
-		clear = function() moves = {} end,
-		count = function() return #moves end,
-		findMove = function(winId)
-			for _, move in ipairs(moves) do
-				if move.winId == winId then
-					return move
-				end
-			end
-			return nil
-		end
-	}
-end
-
 function TestHelpers.withHsGlobal(hsConfig, fn)
 	local oldHs = _G.hs
 	_G.hs = hsConfig
@@ -107,7 +78,7 @@ function TestHelpers.createHsGlobal(overrides)
 				return spaces.activeSpace
 			end,
 			allSpaces = overrides.allSpaces or function()
-				return {["screen-123"] = {spaces.activeSpace, spaces.storageSpace}}
+				return {["screen-123"] = {spaces.activeSpace}}
 			end,
 			openMissionControl = overrides.openMissionControl or function() end,
 			removeSpace = overrides.removeSpace or function() end,

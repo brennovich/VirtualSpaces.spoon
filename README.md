@@ -1,7 +1,3 @@
-_**Note**: on macOS Sequoia and later, `hs.spaces.moveWindowToSpace` is broken ([Hammerspoon issue #3698](https://github.com/Hammerspoon/hammerspoon/issues/3698)), so this Spoon automatically falls back to an emulated strategy there (see "Emulated strategy on Sequoia+" below) instead of moving windows between native Spaces._
-
---
-
 # VirtualSpaces.spoon
 
 VirtualSpaces implements a virtual workspace system that tries to get rid of the annoying Spaces transitions of macOS Mission Control.
@@ -10,38 +6,15 @@ VirtualSpaces implements a virtual workspace system that tries to get rid of the
 
 <video src="https://github.com/user-attachments/assets/ccabd368-a6ce-47ef-b62b-85a36037694f"></video>
 
-It creates multiple logical workspaces on a single macOS desktop by managing window visibility across two macOS spaces: one active and one for storage. Its goal is to provide a instant switching experience between workspaces without the overhead of managing multiple physical desktops and superfulous macOS transition effects.
+It creates multiple logical workspaces on a single macOS desktop by managing window visibility. Its goal is to provide a instant switching experience between workspaces without the overhead of managing multiple physical desktops and superfulous macOS transition effects.
 
 ## Architecture
 
-- **Active Space:** Where visible workspace windows are displayed
-- **Storage Space:** Where hidden workspace windows are kept
 - **Virtual Workspaces:** Logical groupings that map to physical spaces
 
 <video src="https://github.com/user-attachments/assets/33ad4f85-efc3-48f6-af51-ec59f1b73156"></video>
 
-When switching workspaces, windows are moved between active and storage spaces to simulate independent desktops. This I found to be quite efficient, and looks better than the strategy used by Aerospace, which relies on hiding windows in the corner of the screen (where you can still see some pixels of it).
-
-This is the strategy used pre-Sequoia. On macOS Sequoia and later, an emulated strategy is used instead — see "Emulated strategy on Sequoia+" below.
-
-### Native focus behavior (pre-Sequoia)
-
-When clicking on a Dock icon, or when and applications brings focus or even when cmd+tab is used, if the window in question is in the storage space, the spoon will switch the roles of the native spaces, making the storage space active and vice versa. This way, the user can still use native macOS focus behavior without breaking the virtual workspace metaphor. The only downside is that upon such switch the transition effect will occur.
-
-<video src="https://github.com/user-attachments/assets/6f29eece-0b35-4a35-aaf2-8af68989ab8a"></video>
-
-For that is recommended to set Reduce Motion in System Preferences > Accessibility > Display.
-
-This behavior does not apply on Sequoia+, since the emulated strategy never uses a second native Space to begin with — there's nothing to switch roles with.
-
-### Emulated strategy on Sequoia+
-
-Since `hs.spaces.moveWindowToSpace` is broken on Sequoia, VirtualSpaces detects the OS version at init time and, on macOS 15+, hides "storage" windows by moving them almost entirely off the right edge of the main screen instead of to a second native Space — the same approach Aerospace uses. This has a few consequences worth knowing about:
-
-- macOS itself refuses to place a window fully outside all screens, so a 1px sliver of each hidden window remains visible at the screen's edge. This is expected, OS-enforced behavior, not a bug.
-- Mission Control, Cmd+Tab, and App Exposé can still reveal "hidden" windows, since they technically remain on the same, single native Space.
-- The Dock/gesture-based "manually navigate to storage" discovery described above doesn't apply, since there's no second native Space to navigate to.
-- If Hammerspoon reloads or crashes while windows are parked at the hidden edge, they're pulled back to a visible position on the next `init()` — not necessarily their exact prior position.
+When switching workspaces, windows are moved between their original position and hidden at the corner of the macOS native space to simulate independent desktops. This is the strategy used by Aerospace, despite you can still see some pixels of it. But different from Aerospace, VirtualSpaces does not bring a whole i3-based tiling experience, it just provides a way to manage multiple workspaces without the overhead of macOS Spaces.
 
 ## Features
 
@@ -179,9 +152,7 @@ With debug logging enabled, you'll see timing information for operations.  Check
 ## Limitations
 
 - Supports only one screen (once I get it stable, multi-screen support may be added)
-- Pre-Sequoia: you need to give up on macOS native Spaces features, like creating new spaces through Mission Control
-- Pre-Sequoia: native focus events (clicking Dock icons, cmd+tabbing) will trigger macOS space transitions
-- Sequoia+ (emulated strategy): a 1px sliver of hidden windows remains visible at the screen edge, and Mission Control/Cmd+Tab/Exposé can still reveal them — see "Emulated strategy on Sequoia+" above
+- Create native macOS spaces (Mission Control) is not supported, I want to support this inthe future 
 
 ## Contribute
 
@@ -199,6 +170,6 @@ Tests use the LuaUnit framework and follow TDD principles.
 # Build the spoon
 make build
 
-# Build and install to ~/.hammerspoon/Spoons
+# Build and install to ~/.hammerspoon/Spoons with debug enabled
 make install
 ```
