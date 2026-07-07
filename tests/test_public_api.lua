@@ -360,6 +360,38 @@ function TestPublicApi:testSwitchToNonEmptyVirtualSpaceWhileOffManagedRestoresFo
 	lu.assertEquals(focusCalls, {700})
 end
 
+function TestPublicApi:testManualNavigationToHiddenWindowDispatchesVirtualSpaceChanged()
+	local filterNew, filterCallbacks = helpers.createFilterCapture()
+	local win = helpers.createHsWindow(700, "App")
+	local focused = nil
+
+	_G.hs = helpers.createHsGlobal({
+		spaces = {activeSpace = 1},
+		windowSpaces = function() return {1} end,
+		filterNew = filterNew,
+		windowGet = function(id) return id == 700 and win or nil end,
+		focusedWindow = function() return focused end,
+	})
+
+	package.loaded['init'] = nil
+	local VirtualSpaces = require('init')
+	VirtualSpaces:init()
+
+	VirtualSpaces.windowCache:add(win)
+	VirtualSpaces.model:assignWindowToVirtualSpace(700, 1)
+	VirtualSpaces:switchToVirtualSpace(2)
+
+	local receivedSpaceId = nil
+	VirtualSpaces:subscribe("virtualSpaceChanged", function(eventData)
+		receivedSpaceId = eventData.currentSpace.id
+	end)
+
+	focused = win
+	helpers.emit(filterCallbacks, _G.hs.window.filter.windowFocused, win)
+
+	lu.assertEquals(receivedSpaceId, 1)
+end
+
 function TestPublicApi:testSwitchToSameVirtualSpaceDoesNotTriggerEvent()
 	local callCount = 0
 	local callback = function(eventData) callCount = callCount + 1 end

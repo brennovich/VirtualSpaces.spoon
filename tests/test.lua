@@ -9,5 +9,7 @@ TestGetWindowsApi = require('tests/test_get_windows_api')
 TestPublicApi = require('tests/test_public_api')
 TestWindowDestroyed = require('tests/test_window_destroyed')
 TestWindowImport = require('tests/test_window_import')
+TestPager = require('tests/test_pager')
+TestPagerWiring = require('tests/test_pager_wiring')
 
 os.exit(lu.LuaUnit.run())
