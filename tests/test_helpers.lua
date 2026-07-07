@@ -72,6 +72,44 @@ function TestHelpers.registerWindow(obj, window)
 	obj.model:assignWindowToSpace(Window.new(window), obj.model:getCurrentVirtualSpace())
 end
 
+function TestHelpers.findCanvasText(elements)
+	for _, element in ipairs(elements) do
+		if element.type == "text" then return element.text end
+	end
+	return nil
+end
+
+function TestHelpers.createCanvasMock()
+	local created = {}
+
+	local canvas = {
+		windowLevels = {overlay = 21},
+		new = function(frame)
+			local frameValue = frame
+			local c = {
+				elements = {},
+				shownCount = 0,
+				hiddenCount = 0,
+				deleted = false,
+				levelValue = nil,
+			}
+			function c:frame(newFrame)
+				if newFrame then frameValue = newFrame; return self end
+				return frameValue
+			end
+			function c:replaceElements(elements) self.elements = elements; return self end
+			function c:show() self.shownCount = self.shownCount + 1; return self end
+			function c:hide() self.hiddenCount = self.hiddenCount + 1; return self end
+			function c:delete() self.deleted = true; return self end
+			function c:level(value) self.levelValue = value; return self end
+			table.insert(created, c)
+			return c
+		end,
+	}
+
+	return canvas, created
+end
+
 function TestHelpers.createHsGlobal(overrides)
 	overrides = overrides or {}
 
@@ -122,6 +160,7 @@ function TestHelpers.createHsGlobal(overrides)
 				windowFocused = 3
 			}
 		},
+		canvas = overrides.canvas or TestHelpers.createCanvasMock(),
 		logger = {
 			new = overrides.loggerNew or function()
 				return {
