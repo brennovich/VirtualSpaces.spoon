@@ -40,7 +40,7 @@ obj.license = "MIT"
 --- * Implements space watcher to detect manual navigation to storage space
 function obj:init()
 	self._telemetry = Telemetry.new('VirtualSpaces', 'warning')
-	self.windowCache = WindowCache.new(self._telemetry)
+	self.windowCache = WindowCache.new()
 	self.windowFilter = hs.window.filter.new()
 
 	self.spaceStrategy = VirtualSpace.new({
@@ -230,7 +230,7 @@ end
 --- Returns:
 --- * Current virtual space ID (1-4)
 function obj:getCurrentVirtualSpace()
-	return self.model._currentVirtualSpace
+	return self.model:getCurrentVirtualSpace()
 end
 
 --- VirtualSpaces:getCurrentVirtualSpaceMetadata()
@@ -378,8 +378,7 @@ function obj:_switchSpaces(virtualSpace)
 	end)
 
 	self._telemetry:span("mapWindowsToNativeSpaces", function()
-		local categorized = self.model:categorizeWindowsForTransition(
-			virtualSpace, self.model:getCurrentVirtualSpace())
+		local categorized = self.model:categorizeWindowsForTransition(virtualSpace)
 
 		for _, winId in ipairs(categorized.toActive) do
 			self.spaceStrategy:moveWindowToSpace(winId, self.spaceStrategy:getActiveSpace())
@@ -420,7 +419,7 @@ function obj:_restoreWindowsFocusForVirtualSpace()
 		end
 
 		local win = self.windowCache:get(
-			self.model:prepareWindownToBeFocusedOnCurrentVirtualSpace())
+			self.model:prepareWindowToBeFocusedOnCurrentVirtualSpace())
 
 		if win then
 			win:focus()

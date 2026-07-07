@@ -1,12 +1,10 @@
 local lu = require('luaunit')
-local Window = require('Window')
 local helpers = require('tests/test_helpers')
 
 TestGetWindowsApi = {}
 
 function TestGetWindowsApi:setUp()
-	self.spaces = {activeSpace = 1, storageSpace = 2}
-	self.movedWindows = {}
+	self.spaces = {activeSpace = 1}
 	self.mockWindows = {}
 
 	for i, id in ipairs({100, 200, 300}) do
@@ -15,7 +13,6 @@ function TestGetWindowsApi:setUp()
 
 	_G.hs = helpers.createHsGlobal({
 		spaces = self.spaces,
-		movedWindows = self.movedWindows,
 		mockWindows = self.mockWindows,
 		windowGet = function(id)
 			return self.mockWindows[id]
@@ -29,7 +26,7 @@ function TestGetWindowsApi:setUp()
 end
 
 function TestGetWindowsApi:_registerWindow(window)
-	self.obj.model:assignWindowToSpace(Window.new(window), self.obj.model:getCurrentVirtualSpace())
+	helpers.registerWindow(self.obj, window)
 end
 
 function TestGetWindowsApi:testGetWindowsForCurrentVirtualSpaceReturnsEmptyArrayWhenNoWindows()

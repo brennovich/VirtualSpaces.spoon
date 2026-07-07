@@ -5,11 +5,12 @@ TestWindowDestroyed = {}
 function TestWindowDestroyed:setUp()
 	local helpers = require('tests/test_helpers')
 
+	self.helpers = helpers
 	self.focusCalls = {}
-	self.filterCallbacks = {}
 	self.mockFocusedWindow = nil
 
-	local filterCallbacks = self.filterCallbacks
+	local filterNew
+	filterNew, self.filterCallbacks = helpers.createFilterCapture()
 	local focusCalls = self.focusCalls
 
 	self.window1 = helpers.createHsWindow(100, "App1", {
@@ -34,15 +35,7 @@ function TestWindowDestroyed:setUp()
 	})
 
 	_G.hs = helpers.createHsGlobal({
-		filterNew = function()
-			return {
-				subscribe = function(_, eventType, cb)
-					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
-					table.insert(filterCallbacks[eventType], cb)
-				end,
-				setCurrentSpace = function() end
-			}
-		end,
+		filterNew = filterNew,
 		windowGet = function(id)
 			if id == 100 then return self.window1 end
 			if id == 200 then return self.window2 end
@@ -60,42 +53,40 @@ function TestWindowDestroyed:setUp()
 end
 
 function TestWindowDestroyed:_emit(eventType, window)
-	for _, cb in ipairs(self.filterCallbacks[eventType] or {}) do
-		cb(window)
-	end
+	self.helpers.emit(self.filterCallbacks, eventType, window)
 end
 
 function TestWindowDestroyed:testNonTabbedWindowDestroyedRestoresFocus()
-	self:_emit(1, self.window1)
-	self:_emit(3, self.window1)
-	self:_emit(1, self.window2)
+	self:_emit(hs.window.filter.windowCreated, self.window1)
+	self:_emit(hs.window.filter.windowFocused, self.window1)
+	self:_emit(hs.window.filter.windowCreated, self.window2)
 
-	self:_emit(2, self.window2)
+	self:_emit(hs.window.filter.windowDestroyed, self.window2)
 
 	lu.assertTrue(table.contains(self.focusCalls, 100))
 end
 
 function TestWindowDestroyed:testTabbedWindowDestroyedDoesNotRestoreFocus()
-	self:_emit(1, self.window3a)
-	self:_emit(3, self.window3a)
-	self:_emit(1, self.window3b)
-	self:_emit(3, self.window3b)
-	self:_emit(1, self.window1)
+	self:_emit(hs.window.filter.windowCreated, self.window3a)
+	self:_emit(hs.window.filter.windowFocused, self.window3a)
+	self:_emit(hs.window.filter.windowCreated, self.window3b)
+	self:_emit(hs.window.filter.windowFocused, self.window3b)
+	self:_emit(hs.window.filter.windowCreated, self.window1)
 
-	self:_emit(2, self.window3b)
+	self:_emit(hs.window.filter.windowDestroyed, self.window3b)
 
 	lu.assertEquals(self.focusCalls, {})
 end
 
 function TestWindowDestroyed:testTabSiblingFocusPreservedWhenSeparateWindowClosed()
-	self:_emit(1, self.window3a)
-	self:_emit(1, self.window3b)
-	self:_emit(3, self.window3a)
-	self:_emit(1, self.window1)
-	self:_emit(3, self.window1)
+	self:_emit(hs.window.filter.windowCreated, self.window3a)
+	self:_emit(hs.window.filter.windowCreated, self.window3b)
+	self:_emit(hs.window.filter.windowFocused, self.window3a)
+	self:_emit(hs.window.filter.windowCreated, self.window1)
+	self:_emit(hs.window.filter.windowFocused, self.window1)
 
 	self.mockFocusedWindow = self.window3b
-	self:_emit(2, self.window1)
+	self:_emit(hs.window.filter.windowDestroyed, self.window1)
 
 	lu.assertEquals(self.obj.model:getFocusedWindowForVirtualSpace(1), 301)
 	lu.assertFalse(table.contains(self.focusCalls, 300))

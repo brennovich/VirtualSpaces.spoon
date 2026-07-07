@@ -5,10 +5,11 @@ TestWindowImport = {}
 function TestWindowImport:setUp()
 	local helpers = require('tests/test_helpers')
 
-	self.filterCallbacks = {}
+	self.helpers = helpers
 	self.mockFocusedWindow = nil
 
-	local filterCallbacks = self.filterCallbacks
+	local filterNew
+	filterNew, self.filterCallbacks = helpers.createFilterCapture()
 
 	self.standardWindow = helpers.createHsWindow(100, "App1")
 
@@ -18,15 +19,7 @@ function TestWindowImport:setUp()
 	self.otherSpaceWindow = helpers.createHsWindow(300, "App3")
 
 	_G.hs = helpers.createHsGlobal({
-		filterNew = function()
-			return {
-				subscribe = function(_, eventType, cb)
-					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
-					table.insert(filterCallbacks[eventType], cb)
-				end,
-				setCurrentSpace = function() end
-			}
-		end,
+		filterNew = filterNew,
 		windowGet = function(id)
 			if id == 100 then return self.standardWindow end
 			if id == 200 then return self.nonStandardWindow end
@@ -43,19 +36,17 @@ function TestWindowImport:setUp()
 end
 
 function TestWindowImport:_emit(eventType, window)
-	for _, cb in ipairs(self.filterCallbacks[eventType] or {}) do
-		cb(window)
-	end
+	self.helpers.emit(self.filterCallbacks, eventType, window)
 end
 
 function TestWindowImport:testFocusingUnknownWindowAssignsItToCurrentVirtualSpace()
-	self:_emit(3, self.standardWindow)
+	self:_emit(hs.window.filter.windowFocused, self.standardWindow)
 
 	lu.assertEquals(self.obj.model:getVirtualSpaceForWindow(100), 1)
 end
 
 function TestWindowImport:testFocusingUnknownWindowCachesIt()
-	self:_emit(3, self.standardWindow)
+	self:_emit(hs.window.filter.windowFocused, self.standardWindow)
 
 	local windows = self.obj:getWindowsForCurrentVirtualSpace()
 
@@ -66,7 +57,7 @@ end
 function TestWindowImport:testFocusingUnknownWindowAssignsItToActiveVirtualSpace()
 	self.obj:switchToVirtualSpace(2)
 
-	self:_emit(3, self.standardWindow)
+	self:_emit(hs.window.filter.windowFocused, self.standardWindow)
 
 	lu.assertEquals(self.obj.model:getVirtualSpaceForWindow(100), 2)
 end
@@ -74,13 +65,13 @@ end
 function TestWindowImport:testFocusingKnownWindowDoesNotReassignIt()
 	self.obj.model:assignWindowToVirtualSpace(100, 2)
 
-	self:_emit(3, self.standardWindow)
+	self:_emit(hs.window.filter.windowFocused, self.standardWindow)
 
 	lu.assertEquals(self.obj.model:getVirtualSpaceForWindow(100), 2)
 end
 
 function TestWindowImport:testFocusingNonStandardWindowDoesNotImportIt()
-	self:_emit(3, self.nonStandardWindow)
+	self:_emit(hs.window.filter.windowFocused, self.nonStandardWindow)
 
 	lu.assertNil(self.obj.model:getVirtualSpaceForWindow(200))
 end

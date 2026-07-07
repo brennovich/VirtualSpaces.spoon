@@ -106,36 +106,19 @@ end
 
 function TestSpacesModel:testUnregisterWindowsById()
 	local cases = {
-		{
-			name = "remove assigned window",
-			assignment = {window = 100, space = 1},
-			removals = {100},
-			expected = 100
-		},
-		{
-			name = "remove non-existent window",
-			assignment = {},
-			removals = {999},
-			expected = 999
-		},
-		{
-			name = "get non-existent window",
-			assignment = {},
-			removals = {},
-			expected = 999
-		},
+		{name = "remove assigned window", assigned = true, windowId = 100},
+		{name = "remove non-existent window", assigned = false, windowId = 999},
 	}
 
 	for _, tc in ipairs(cases) do
 		local model = SpacesModel.new()
-
-		model:assignWindowToVirtualSpace(tc.assignment.window, tc.assignment.space)
-
-		for _, windowId in ipairs(tc.removals) do
-			model:unregisterWindowById(windowId)
+		if tc.assigned then
+			model:assignWindowToVirtualSpace(tc.windowId, 1)
 		end
 
-		lu.assertNil(model:getVirtualSpaceForWindow(tc.expected), tc.name)
+		model:unregisterWindowById(tc.windowId)
+
+		lu.assertNil(model:getVirtualSpaceForWindow(tc.windowId), tc.name)
 	end
 end
 
@@ -146,19 +129,8 @@ function TestSpacesModel:testGetWindowsInVirtualSpace()
 	model:assignWindowToVirtualSpace(200, 1)
 	model:assignWindowToVirtualSpace(300, 2)
 
-	local windows = model:getWindowsInVirtualSpace(1)
-
-	lu.assertEquals(#windows, 2)
-	lu.assertTrue(table.contains(windows, 100))
-	lu.assertTrue(table.contains(windows, 200))
-end
-
-function TestSpacesModel:testgetWindowsInVirtualSpaceWhenVirtualSpaceIsEmpty()
-	local model = SpacesModel.new()
-
-	local windows = model:getWindowsInVirtualSpace(1)
-
-	lu.assertEquals(#windows, 0)
+	lu.assertEquals(model:getWindowsInVirtualSpace(1), {100, 200})
+	lu.assertEquals(model:getWindowsInVirtualSpace(3), {})
 end
 
 function TestSpacesModel:testReassignWindowRemovesFromOldSpace()
@@ -168,15 +140,8 @@ function TestSpacesModel:testReassignWindowRemovesFromOldSpace()
 	model:assignWindowToVirtualSpace(200, 1)
 	model:assignWindowToVirtualSpace(100, 2)
 
-	spaceOneWindows = model:getWindowsInVirtualSpace(1)
-	spaceTwoWindows = model:getWindowsInVirtualSpace(2)
-
-	lu.assertEquals(#spaceOneWindows, 1)
-	lu.assertTrue(table.contains(spaceOneWindows, 200))
-
-	lu.assertEquals(#spaceTwoWindows, 1)
-	lu.assertTrue(table.contains(spaceTwoWindows, 100))
-	lu.assertTrue(table.contains(spaceTwoWindows, 100))
+	lu.assertEquals(model:getWindowsInVirtualSpace(1), {200})
+	lu.assertEquals(model:getWindowsInVirtualSpace(2), {100})
 end
 
 function TestSpacesModel:testReassignWindowToSameSpaceIsIdempotent()
@@ -186,18 +151,7 @@ function TestSpacesModel:testReassignWindowToSameSpaceIsIdempotent()
 	model:assignWindowToVirtualSpace(200, 1)
 	model:assignWindowToVirtualSpace(100, 1)
 
-	local windows = model:getWindowsInVirtualSpace(1)
-	local count100 = 0
-	for _, winId in ipairs(windows) do
-		if winId == 100 then
-			count100 = count100 + 1
-		end
-	end
-
-	lu.assertEquals(#windows, 2)
-	lu.assertEquals(count100, 1)
-	lu.assertTrue(table.contains(windows, 100))
-	lu.assertTrue(table.contains(windows, 200))
+	lu.assertEquals(model:getWindowsInVirtualSpace(1), {100, 200})
 end
 
 function TestSpacesModel:testRemoveWindowFromSpaceWithMultipleWindows()
@@ -280,7 +234,7 @@ function TestSpacesModel:testFocusHistoryNoDuplicates()
 
 	model:saveFocusedWindowInVirtualSpace(1, 100)
 	model:saveFocusedWindowInVirtualSpace(1, 200)
-	model:saveFocusedWindowInVirtualSpace(1, 100) 
+	model:saveFocusedWindowInVirtualSpace(1, 100)
 
 	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 100)
 
@@ -288,125 +242,76 @@ function TestSpacesModel:testFocusHistoryNoDuplicates()
 	lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), 200)
 end
 
-function TestSpacesModel:testPrepareWindowSkipsInvalidWindowsInHistory()
-	local model = SpacesModel.new()
+function TestSpacesModel:testCategorizeWindowsForTransition()
+	local cases = {
+		{
+			name = "no windows",
+			assignments = {},
+			target = 2,
+			toActive = {},
+			toStorage = {},
+		},
+		{
+			name = "only target space windows",
+			assignments = {{window = 100, space = 2}, {window = 200, space = 2}},
+			target = 2,
+			toActive = {100, 200},
+			toStorage = {},
+		},
+		{
+			name = "only current space windows",
+			assignments = {{window = 100, space = 1}, {window = 200, space = 1}},
+			target = 2,
+			toActive = {},
+			toStorage = {100, 200},
+		},
+		{
+			name = "windows in both spaces",
+			assignments = {{window = 100, space = 1}, {window = 200, space = 2}, {window = 300, space = 1}},
+			target = 2,
+			toActive = {200},
+			toStorage = {100, 300},
+		},
+		{
+			name = "windows in other spaces go to storage",
+			assignments = {{window = 100, space = 3}, {window = 200, space = 4}},
+			target = 2,
+			toActive = {},
+			toStorage = {100, 200},
+		},
+		{
+			name = "target, current and other spaces",
+			assignments = {{window = 100, space = 1}, {window = 200, space = 2}, {window = 300, space = 3}, {window = 400, space = 1}},
+			target = 2,
+			toActive = {200},
+			toStorage = {100, 300, 400},
+		},
+		{
+			name = "target equals current space",
+			assignments = {{window = 100, space = 1}, {window = 200, space = 1}, {window = 300, space = 2}},
+			target = 1,
+			toActive = {100, 200},
+			toStorage = {300},
+		},
+	}
 
-	model:assignWindowToVirtualSpace(100, 1)
-	model:assignWindowToVirtualSpace(200, 1)
-	model:assignWindowToVirtualSpace(300, 1)
+	for _, tc in ipairs(cases) do
+		local model = SpacesModel.new()
+		for _, assignment in ipairs(tc.assignments) do
+			model:assignWindowToVirtualSpace(assignment.window, assignment.space)
+		end
 
-	model:saveFocusedWindowInVirtualSpace(1, 100)
-	model:saveFocusedWindowInVirtualSpace(1, 200)
-	model:saveFocusedWindowInVirtualSpace(1, 300)
+		local result = model:categorizeWindowsForTransition(tc.target)
 
-	model:assignWindowToVirtualSpace(300, 2)
-
-	model:setCurrentVirtualSpace(1)
-
-	local windowId = model:prepareWindownToBeFocusedOnCurrentVirtualSpace()
-	lu.assertEquals(windowId, 200)
-end
-
-function TestSpacesModel:testCategorizeWindowsWithNoWindows()
-	local model = SpacesModel.new()
-
-	local result = model:categorizeWindowsForTransition(2, 1)
-
-	lu.assertEquals(#result.toActive, 0)
-	lu.assertEquals(#result.toStorage, 0)
-end
-
-function TestSpacesModel:testCategorizeWindowsWithOnlyTargetSpaceWindows()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 2)
-	model:assignWindowToVirtualSpace(200, 2)
-
-	local result = model:categorizeWindowsForTransition(2, 1)
-
-	lu.assertEquals(#result.toActive, 2)
-	lu.assertTrue(table.contains(result.toActive, 100))
-	lu.assertTrue(table.contains(result.toActive, 200))
-	lu.assertEquals(#result.toStorage, 0)
-end
-
-function TestSpacesModel:testCategorizeWindowsWithOnlyCurrentSpaceWindows()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 1)
-	model:assignWindowToVirtualSpace(200, 1)
-
-	local result = model:categorizeWindowsForTransition(2, 1)
-
-	lu.assertEquals(#result.toActive, 0)
-	lu.assertEquals(#result.toStorage, 2)
-	lu.assertTrue(table.contains(result.toStorage, 100))
-	lu.assertTrue(table.contains(result.toStorage, 200))
-	lu.assertEquals(#result.toStorage, 2)
-end
-
-function TestSpacesModel:testCategorizeWindowsWithBothSpaces()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 1)
-	model:assignWindowToVirtualSpace(200, 2)
-	model:assignWindowToVirtualSpace(300, 1)
-
-	local result = model:categorizeWindowsForTransition(2, 1)
-
-	lu.assertEquals(#result.toActive, 1)
-	lu.assertTrue(table.contains(result.toActive, 200))
-	lu.assertEquals(#result.toStorage, 2)
-	lu.assertTrue(table.contains(result.toStorage, 100))
-	lu.assertTrue(table.contains(result.toStorage, 300))
-end
-
-function TestSpacesModel:testCategorizeWindowsWithOtherSpaces()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 3)
-	model:assignWindowToVirtualSpace(200, 4)
-
-	local result = model:categorizeWindowsForTransition(2, 1)
-
-	lu.assertEquals(#result.toActive, 0)
-	lu.assertEquals(#result.toStorage, 2)
-	lu.assertTrue(table.contains(result.toStorage, 100))
-	lu.assertTrue(table.contains(result.toStorage, 200))
-end
-
-function TestSpacesModel:testCategorizeWindowsWithAllThreeCategories()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 1)
-	model:assignWindowToVirtualSpace(200, 2)
-	model:assignWindowToVirtualSpace(300, 3)
-	model:assignWindowToVirtualSpace(400, 1)
-
-	local result = model:categorizeWindowsForTransition(2, 1)
-
-	lu.assertEquals(#result.toActive, 1)
-	lu.assertTrue(table.contains(result.toActive, 200))
-	lu.assertEquals(#result.toStorage, 3)
-	lu.assertTrue(table.contains(result.toStorage, 100))
-	lu.assertTrue(table.contains(result.toStorage, 300))
-	lu.assertTrue(table.contains(result.toStorage, 400))
-end
-
-function TestSpacesModel:testCategorizeWindowsWhenTargetEqualsCurrentSpace()
-	local model = SpacesModel.new()
-
-	model:assignWindowToVirtualSpace(100, 1)
-	model:assignWindowToVirtualSpace(200, 1)
-	model:assignWindowToVirtualSpace(300, 2)
-
-	local result = model:categorizeWindowsForTransition(1, 1)
-
-	lu.assertEquals(#result.toActive, 2)
-	lu.assertTrue(table.contains(result.toActive, 100))
-	lu.assertTrue(table.contains(result.toActive, 200))
-	lu.assertEquals(#result.toStorage, 1)
-	lu.assertTrue(table.contains(result.toStorage, 300))
+		lu.assertEquals(#result.toActive, #tc.toActive, tc.name)
+		for _, winId in ipairs(tc.toActive) do
+			lu.assertTrue(table.contains(result.toActive, winId), tc.name)
+		end
+		lu.assertEquals(#result.toStorage, #tc.toStorage, tc.name)
+		for _, winId in ipairs(tc.toStorage) do
+			lu.assertTrue(table.contains(result.toStorage, winId), tc.name)
+		end
+	end
 end
 
 function TestSpacesModel:testAssignWindowWithNilWindowId()
@@ -450,7 +355,7 @@ end
 
 function TestSpacesModel:testAssignWindowToSpaceClearsFocusedWindowAndVirtualSpaceEntry()
 	local model = SpacesModel.new()
-	local window = h.createSimpleWindow(100)
+	local window = h.createWindow(100)
 
 	model:assignWindowToSpace(window, 1)
 	lu.assertEquals(model:getVirtualSpaceForWindow(window.id), 1)
@@ -463,7 +368,7 @@ end
 
 function TestSpacesModel:testMoveWindowToVirtualSpaceMovesRegisteredWindow()
 	local model = SpacesModel.new()
-	local window = h.createSimpleWindow(100)
+	local window = h.createWindow(100)
 
 	model:assignWindowToSpace(window, 1)
 	lu.assertEquals(model:getVirtualSpaceForWindow(100), 1)
@@ -516,14 +421,13 @@ end
 
 function TestSpacesModel:testUnregisterWindowByIdWithSingleWindow()
 	local model = SpacesModel.new()
-	local window = h.createSimpleWindow(100)
+	local window = h.createWindow(100)
 
 	model:assignWindowToSpace(window, 1)
-	lu.assertNotNil(model._windowToGroup[100])
+	lu.assertNotNil(model:getTabGroupForWindow(100))
 
 	model:unregisterWindowById(100)
 
-	lu.assertNil(model._windowToGroup[100])
 	lu.assertNil(model:getTabGroupForWindow(100))
 end
 
@@ -541,7 +445,6 @@ function TestSpacesModel:testUnregisterWindowByIdFromTabGroupWithRemainingWindow
 
 	model:unregisterWindowById(100)
 
-	lu.assertNil(model._windowToGroup[100])
 	lu.assertNil(model:getTabGroupForWindow(100))
 
 	local tabGroupAfter = model:getTabGroupForWindow(200)
@@ -562,7 +465,6 @@ function TestSpacesModel:testUnregisterWindowByIdRemovesEmptyTabGroup()
 
 	model:unregisterWindowById(100)
 
-	lu.assertNil(model._windowToGroup[100])
 	lu.assertNil(model:getTabGroupForWindow(100))
 end
 
@@ -571,7 +473,7 @@ function TestSpacesModel:testUnregisterWindowByIdWithNonExistentWindow()
 
 	model:unregisterWindowById(999)
 
-	lu.assertNil(model._windowToGroup[999])
+	lu.assertNil(model:getTabGroupForWindow(999))
 end
 
 function TestSpacesModel:testEligibleWindowToBeFocused()
@@ -580,8 +482,8 @@ function TestSpacesModel:testEligibleWindowToBeFocused()
 			name = "returns saved focused window when using assignWindowToSpace flow",
 			targetSpace = 1,
 			setup = function(model)
-				model:assignWindowToSpace(h.createSimpleWindow(46), 1)
-				model:assignWindowToSpace(h.createSimpleWindow(1375), 1)
+				model:assignWindowToSpace(h.createWindow(46), 1)
+				model:assignWindowToSpace(h.createWindow(1375), 1)
 				model:saveFocusedWindowInVirtualSpace(1, 1375)
 			end,
 			expectedWindowId = 1375,
@@ -621,6 +523,21 @@ function TestSpacesModel:testEligibleWindowToBeFocused()
 			expectedFocusedWindowId = 100,
 		},
 		{
+			name = "skips focus-history entries that moved to another virtual space",
+			targetSpace = 1,
+			setup = function(model)
+				model:assignWindowToVirtualSpace(100, 1)
+				model:assignWindowToVirtualSpace(200, 1)
+				model:assignWindowToVirtualSpace(300, 1)
+				model:saveFocusedWindowInVirtualSpace(1, 100)
+				model:saveFocusedWindowInVirtualSpace(1, 200)
+				model:saveFocusedWindowInVirtualSpace(1, 300)
+				model:assignWindowToVirtualSpace(300, 2)
+			end,
+			expectedWindowId = 200,
+			expectedFocusedWindowId = 200,
+		},
+		{
 			name = "returns nil when no windows in virtual space",
 			targetSpace = 1,
 			setup = function(_)end,
@@ -645,7 +562,7 @@ function TestSpacesModel:testEligibleWindowToBeFocused()
 		tc.setup(model)
 		model:setCurrentVirtualSpace(tc.targetSpace)
 
-		local windowId = model:prepareWindownToBeFocusedOnCurrentVirtualSpace()
+		local windowId = model:prepareWindowToBeFocusedOnCurrentVirtualSpace()
 
 		lu.assertEquals(model:getFocusedWindowForVirtualSpace(1), tc.expectedFocusedWindowId, tc.name)
 		lu.assertEquals(windowId, tc.expectedWindowId, tc.name)

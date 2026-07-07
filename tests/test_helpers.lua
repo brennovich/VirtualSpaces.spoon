@@ -48,30 +48,41 @@ function TestHelpers.createHsWindow(id, appName, opts)
 	}
 end
 
-function TestHelpers.createSimpleWindow(id)
-	return TestHelpers.createWindow(id, 1, {x = 0, y = 0, w = 800, h = 600}, "TestApp")
+function TestHelpers.createFilterCapture()
+	local callbacks = {}
+	local filterNew = function()
+		return {
+			subscribe = function(_, eventType, cb)
+				callbacks[eventType] = callbacks[eventType] or {}
+				table.insert(callbacks[eventType], cb)
+			end
+		}
+	end
+	return filterNew, callbacks
+end
+
+function TestHelpers.emit(callbacks, eventType, window)
+	for _, cb in ipairs(callbacks[eventType] or {}) do
+		cb(window)
+	end
+end
+
+function TestHelpers.registerWindow(obj, window)
+	local Window = require('Window')
+	obj.model:assignWindowToSpace(Window.new(window), obj.model:getCurrentVirtualSpace())
 end
 
 function TestHelpers.createHsGlobal(overrides)
 	overrides = overrides or {}
 
-	local spaces = overrides.spaces or {activeSpace = 1, storageSpace = 2}
-	local movedWindows = overrides.movedWindows or {}
+	local spaces = overrides.spaces or {activeSpace = 1}
 	local mockWindows = overrides.mockWindows or {}
 
 	return {
 		spoons = {
 			scriptPath = overrides.scriptPath or function() return "./" end
 		},
-		host = {
-			operatingSystemVersion = overrides.operatingSystemVersion or function()
-				return {major = 14, minor = 0, patch = 0}
-			end
-		},
 		spaces = {
-			moveWindowToSpace = overrides.moveWindowToSpace or function(window, space)
-				table.insert(movedWindows, {window = window, space = space})
-			end,
 			windowSpaces = overrides.windowSpaces or function(winId)
 				return {spaces.activeSpace}
 			end,
@@ -83,13 +94,7 @@ function TestHelpers.createHsGlobal(overrides)
 				return {["screen-123"] = {spaces.activeSpace}}
 			end,
 			openMissionControl = overrides.openMissionControl or function() end,
-			removeSpace = overrides.removeSpace or function() end,
-			addSpaceToScreen = overrides.addSpaceToScreen or function() end,
-			watcher = overrides.watcher or {
-				new = function()
-					return {start = function() end}
-				end
-			}
+			removeSpace = overrides.removeSpace or function() end
 		},
 		screen = {
 			mainScreen = overrides.mainScreen or function()
@@ -109,8 +114,7 @@ function TestHelpers.createHsGlobal(overrides)
 			filter = {
 				new = overrides.filterNew or function()
 					return {
-						subscribe = function() end,
-						setCurrentSpace = function() end
+						subscribe = function() end
 					}
 				end,
 				windowCreated = 1,

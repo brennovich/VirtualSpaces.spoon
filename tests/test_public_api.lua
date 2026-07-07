@@ -1,12 +1,10 @@
 local lu = require('luaunit')
-local Window = require('Window')
 local helpers = require('tests/test_helpers')
 
 TestPublicApi = {}
 
 function TestPublicApi:setUp()
-	self.spaces = {activeSpace = 1, storageSpace = 2}
-	self.movedWindows = {}
+	self.spaces = {activeSpace = 1}
 	self.mockWindows = {}
 
 	for i, id in ipairs({100, 200, 300}) do
@@ -15,7 +13,6 @@ function TestPublicApi:setUp()
 
 	_G.hs = helpers.createHsGlobal({
 		spaces = self.spaces,
-		movedWindows = self.movedWindows,
 		mockWindows = self.mockWindows,
 		focusedWindow = function() return self.mockWindows[100] end,
 		windowGet = function(id)
@@ -30,7 +27,7 @@ function TestPublicApi:setUp()
 end
 
 function TestPublicApi:_registerWindow(window)
-	self.obj.model:assignWindowToSpace(Window.new(window), self.obj.model:getCurrentVirtualSpace())
+	helpers.registerWindow(self.obj, window)
 end
 
 function TestPublicApi:testGetCurrentVirtualSpaceReturnsDefaultSpaceOne()
@@ -199,69 +196,28 @@ function TestPublicApi:testUnsubscribeWithNonExistentCallbackDoesNotError()
 	lu.assertEquals(#self.obj.subscribers.virtualSpaceChanged, 1)
 end
 
-function TestPublicApi:testDispatchEventCallsSubscribedCallbacks()
-	local callCount = 0
-	local receivedEventData = nil
-	local callback = function(eventData)
-		callCount = callCount + 1
-		receivedEventData = eventData
-	end
-
-	self.obj:subscribe("virtualSpaceChanged", callback)
-	self.obj:_dispatchEvent("virtualSpaceChanged")
-
-	lu.assertEquals(callCount, 1)
-	lu.assertNotNil(receivedEventData)
-end
-
-function TestPublicApi:testDispatchEventIncludesEventTypeInData()
-	local receivedEventData = nil
-	local callback = function(eventData)
-		receivedEventData = eventData
-	end
-
-	self.obj:subscribe("virtualSpaceChanged", callback)
-	self.obj:_dispatchEvent("virtualSpaceChanged")
-
-	lu.assertEquals(receivedEventData.eventType, "virtualSpaceChanged")
-end
-
-function TestPublicApi:testDispatchEventIncludesCurrentSpaceMetadata()
+function TestPublicApi:testDispatchEventSendsEventDataToSubscribers()
 	self.obj:switchToVirtualSpace(2)
 	self:_registerWindow(self.mockWindows[100])
 
+	local callCount = 0
 	local receivedEventData = nil
-	local callback = function(eventData)
+	self.obj:subscribe("virtualSpaceChanged", function(eventData)
+		callCount = callCount + 1
 		receivedEventData = eventData
-	end
+	end)
 
-	self.obj:subscribe("virtualSpaceChanged", callback)
 	self.obj:_dispatchEvent("virtualSpaceChanged")
 
-	lu.assertNotNil(receivedEventData.currentSpace)
+	lu.assertEquals(callCount, 1)
+	lu.assertEquals(receivedEventData.eventType, "virtualSpaceChanged")
 	lu.assertEquals(receivedEventData.currentSpace.id, 2)
 	lu.assertEquals(receivedEventData.currentSpace.windowCount, 1)
 	lu.assertNotNil(receivedEventData.currentSpace.windows)
 	lu.assertNotNil(receivedEventData.currentSpace.focusedWindow)
 end
 
-function TestPublicApi:testDispatchEventCallsMultipleSubscribers()
-	local callCount1 = 0
-	local callCount2 = 0
-	local callCount3 = 0
-
-	self.obj:subscribe("virtualSpaceChanged", function() callCount1 = callCount1 + 1 end)
-	self.obj:subscribe("virtualSpaceChanged", function() callCount2 = callCount2 + 1 end)
-	self.obj:subscribe("virtualSpaceChanged", function() callCount3 = callCount3 + 1 end)
-
-	self.obj:_dispatchEvent("virtualSpaceChanged")
-
-	lu.assertEquals(callCount1, 1)
-	lu.assertEquals(callCount2, 1)
-	lu.assertEquals(callCount3, 1)
-end
-
-function TestPublicApi:testDispatchEventContinuesAfterCallbackError()
+function TestPublicApi:testDispatchEventCallsAllSubscribersDespiteCallbackError()
 	local callCount1 = 0
 	local callCount2 = 0
 
@@ -275,50 +231,29 @@ function TestPublicApi:testDispatchEventContinuesAfterCallbackError()
 	lu.assertEquals(callCount2, 1)
 end
 
-function TestPublicApi:testDispatchEventWithNoSubscribersDoesNotError()
+function TestPublicApi:testDispatchEventWithNoSubscribersOrInvalidEventTypeDoesNotError()
 	self.obj:_dispatchEvent("virtualSpaceChanged")
-
-	lu.assertEquals(#self.obj.subscribers.virtualSpaceChanged, 0)
-end
-
-function TestPublicApi:testDispatchEventWithInvalidEventTypeDoesNotError()
 	self.obj:_dispatchEvent("invalidEvent")
 
 	lu.assertEquals(#self.obj.subscribers.virtualSpaceChanged, 0)
 end
 
-function TestPublicApi:testSwitchToVirtualSpaceTriggersEvent()
+function TestPublicApi:testSwitchToVirtualSpaceNotifiesSubscribersAfterSpaceChange()
 	local callCount = 0
-	local callback = function(eventData) callCount = callCount + 1 end
-
-	self.obj:subscribe("virtualSpaceChanged", callback)
-	self.obj:switchToVirtualSpace(2)
-
-	lu.assertEquals(callCount, 1)
-end
-
-function TestPublicApi:testSwitchToVirtualSpacePassesCorrectSpaceIdInEvent()
 	local receivedSpaceId = nil
-	local callback = function(eventData)
-		receivedSpaceId = eventData.currentSpace.id
-	end
+	local currentSpaceDuringCallback = nil
 
-	self.obj:subscribe("virtualSpaceChanged", callback)
+	self.obj:subscribe("virtualSpaceChanged", function(eventData)
+		callCount = callCount + 1
+		receivedSpaceId = eventData.currentSpace.id
+		currentSpaceDuringCallback = self.obj.model:getCurrentVirtualSpace()
+	end)
+
 	self.obj:switchToVirtualSpace(3)
 
+	lu.assertEquals(callCount, 1)
 	lu.assertEquals(receivedSpaceId, 3)
-end
-
-function TestPublicApi:testSwitchToVirtualSpaceTriggersEventAfterSpaceChange()
-	local spaceIdDuringCallback = nil
-	local callback = function(eventData)
-		spaceIdDuringCallback = self.obj.model:getCurrentVirtualSpace()
-	end
-
-	self.obj:subscribe("virtualSpaceChanged", callback)
-	self.obj:switchToVirtualSpace(2)
-
-	lu.assertEquals(spaceIdDuringCallback, 2)
+	lu.assertEquals(currentSpaceDuringCallback, 3)
 end
 
 function TestPublicApi:testSwitchToVirtualSpaceHidesCurrentSpaceWindowsAndShowsTargetWindows()
@@ -338,7 +273,7 @@ function TestPublicApi:_switchWhileOffManagedSpace(targetVirtualSpace)
 	local activeNativeSpace = 1
 
 	_G.hs = helpers.createHsGlobal({
-		spaces = {activeSpace = 1, storageSpace = 2},
+		spaces = {activeSpace = 1},
 		windowSpaces = function() return {1} end,
 		activeSpaceOnScreen = function() return activeNativeSpace end,
 		gotoSpace = function(spaceID) table.insert(gotoCalls, spaceID) end,
@@ -361,7 +296,7 @@ function TestPublicApi:testSwitchToEmptyVirtualSpaceWhileOffManagedNavigatesToMa
 end
 
 function TestPublicApi:testGotoSpaceInducedFocusDoesNotSwitchAwayFromEmptySpace()
-	local filterCallbacks = {}
+	local filterNew, filterCallbacks = helpers.createFilterCapture()
 	local activeNativeSpace = 1
 	local focused = nil
 	local windows = {}
@@ -370,18 +305,10 @@ function TestPublicApi:testGotoSpaceInducedFocusDoesNotSwitchAwayFromEmptySpace(
 	end
 
 	_G.hs = helpers.createHsGlobal({
-		spaces = {activeSpace = 1, storageSpace = 2},
+		spaces = {activeSpace = 1},
 		windowSpaces = function() return {1} end,
 		activeSpaceOnScreen = function() return activeNativeSpace end,
-		filterNew = function()
-			return {
-				subscribe = function(_, eventType, cb)
-					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
-					table.insert(filterCallbacks[eventType], cb)
-				end,
-				setCurrentSpace = function() end,
-			}
-		end,
+		filterNew = filterNew,
 		windowGet = function(id) return windows[id] end,
 		focusedWindow = function() return focused end,
 	})
@@ -399,9 +326,7 @@ function TestPublicApi:testGotoSpaceInducedFocusDoesNotSwitchAwayFromEmptySpace(
 	VirtualSpaces:switchToVirtualSpace(3)
 
 	focused = windows[187]
-	for _, cb in ipairs(filterCallbacks[3] or {}) do
-		cb(windows[187])
-	end
+	helpers.emit(filterCallbacks, _G.hs.window.filter.windowFocused, windows[187])
 
 	lu.assertEquals(VirtualSpaces:getCurrentVirtualSpace(), 3)
 end
@@ -414,7 +339,7 @@ function TestPublicApi:testSwitchToNonEmptyVirtualSpaceWhileOffManagedRestoresFo
 	win.focus = function() table.insert(focusCalls, 700) end
 
 	_G.hs = helpers.createHsGlobal({
-		spaces = {activeSpace = 1, storageSpace = 2},
+		spaces = {activeSpace = 1},
 		windowSpaces = function() return {1} end,
 		activeSpaceOnScreen = function() return activeNativeSpace end,
 		gotoSpace = function(spaceID) table.insert(gotoCalls, spaceID) end,

@@ -335,9 +335,7 @@ function TestVirtualSpace:testSetupForMainScreenRecoversWindowsStuckInHiddenCorn
 end
 
 function TestVirtualSpace:testInitPicksVirtualSpace()
-	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end
-	}), function()
+	helpers.withHsGlobal(helpers.createHsGlobal({}), function()
 		package.loaded['init'] = nil
 		local VirtualSpaces = require('init')
 		VirtualSpaces:init()
@@ -348,19 +346,13 @@ function TestVirtualSpace:testInitPicksVirtualSpace()
 end
 
 function TestVirtualSpace:testInitForgetsDestroyedHiddenWindows()
-	local filterCallbacks = {}
+	local filterNew, filterCallbacks = helpers.createFilterCapture()
 	local win = helpers.createHsWindow(100, "App1")
 
 	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
 		allWindows = function() return {win} end,
 		mockWindows = {[100] = win},
-		filterNew = function()
-			return {
-				subscribe = function(_, eventType, cb) filterCallbacks[eventType] = cb end,
-				setCurrentSpace = function() end
-			}
-		end,
+		filterNew = filterNew,
 	}), function()
 		package.loaded['init'] = nil
 		local VirtualSpaces = require('init')
@@ -369,32 +361,23 @@ function TestVirtualSpace:testInitForgetsDestroyedHiddenWindows()
 		VirtualSpaces:moveWindowToVirtualSpace(win, 2)
 		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(100), {"storage"})
 
-		filterCallbacks[_G.hs.window.filter.windowDestroyed](win)
+		helpers.emit(filterCallbacks, _G.hs.window.filter.windowDestroyed, win)
 
 		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(100), {"active"})
 	end)
 end
 
 function TestVirtualSpace:testInitSwitchesVirtualSpaceWhenHiddenWindowFocused()
-	local filterCallbacks = {}
+	local filterNew, filterCallbacks = helpers.createFilterCapture()
 	local win1 = helpers.createHsWindow(100, "App1")
 	local win2 = helpers.createHsWindow(200, "App2")
 	local focusedWindow = nil
 
 	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
 		allWindows = function() return {win1, win2} end,
 		mockWindows = {[100] = win1, [200] = win2},
 		focusedWindow = function() return focusedWindow end,
-		filterNew = function()
-			return {
-				subscribe = function(_, eventType, cb)
-					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
-					table.insert(filterCallbacks[eventType], cb)
-				end,
-				setCurrentSpace = function() end
-			}
-		end,
+		filterNew = filterNew,
 	}), function()
 		package.loaded['init'] = nil
 		local VirtualSpaces = require('init')
@@ -405,9 +388,7 @@ function TestVirtualSpace:testInitSwitchesVirtualSpaceWhenHiddenWindowFocused()
 		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"storage"})
 
 		focusedWindow = win2
-		for _, cb in ipairs(filterCallbacks[_G.hs.window.filter.windowFocused]) do
-			cb(win2)
-		end
+		helpers.emit(filterCallbacks, _G.hs.window.filter.windowFocused, win2)
 
 		lu.assertEquals(VirtualSpaces.model:getCurrentVirtualSpace(), 2)
 		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"active"})
@@ -416,14 +397,13 @@ function TestVirtualSpace:testInitSwitchesVirtualSpaceWhenHiddenWindowFocused()
 end
 
 function TestVirtualSpace:testInitStaysOnEmptySpaceWhenLastWindowClosedAndHiddenWindowAutoFocused()
-	local filterCallbacks = {}
+	local filterNew, filterCallbacks = helpers.createFilterCapture()
 	local win1 = helpers.createHsWindow(100, "App1")
 	local win2 = helpers.createHsWindow(200, "App2")
 	local focusedWindow = nil
 	local deadWindows = {}
 
 	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
 		allWindows = function() return {win1, win2} end,
 		focusedWindow = function() return focusedWindow end,
 		windowGet = function(id)
@@ -432,15 +412,7 @@ function TestVirtualSpace:testInitStaysOnEmptySpaceWhenLastWindowClosedAndHidden
 			if id == 200 then return win2 end
 			return nil
 		end,
-		filterNew = function()
-			return {
-				subscribe = function(_, eventType, cb)
-					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
-					table.insert(filterCallbacks[eventType], cb)
-				end,
-				setCurrentSpace = function() end
-			}
-		end,
+		filterNew = filterNew,
 	}), function()
 		package.loaded['init'] = nil
 		local VirtualSpaces = require('init')
@@ -451,9 +423,7 @@ function TestVirtualSpace:testInitStaysOnEmptySpaceWhenLastWindowClosedAndHidden
 
 		deadWindows[100] = true
 		focusedWindow = win2
-		for _, cb in ipairs(filterCallbacks[_G.hs.window.filter.windowFocused]) do
-			cb(win2)
-		end
+		helpers.emit(filterCallbacks, _G.hs.window.filter.windowFocused, win2)
 
 		lu.assertEquals(VirtualSpaces.model:getCurrentVirtualSpace(), 1)
 		lu.assertEquals(VirtualSpaces.spaceStrategy:windowSpaces(200), {"storage"})
@@ -461,35 +431,24 @@ function TestVirtualSpace:testInitStaysOnEmptySpaceWhenLastWindowClosedAndHidden
 end
 
 function TestVirtualSpace:testInitIgnoresWindowsOnOtherNativeSpaces()
-	local filterCallbacks = {}
+	local filterNew, filterCallbacks = helpers.createFilterCapture()
 	local win1 = helpers.createHsWindow(100, "App1")
 	local win2 = helpers.createHsWindow(200, "App2")
 
 	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
 		allWindows = function() return {win1} end,
 		mockWindows = {[100] = win1, [200] = win2},
 		windowSpaces = function(winId)
 			if winId == 200 then return {99} end
 			return {1}
 		end,
-		filterNew = function()
-			return {
-				subscribe = function(_, eventType, cb)
-					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
-					table.insert(filterCallbacks[eventType], cb)
-				end,
-				setCurrentSpace = function() end
-			}
-		end,
+		filterNew = filterNew,
 	}), function()
 		package.loaded['init'] = nil
 		local VirtualSpaces = require('init')
 		VirtualSpaces:init()
 
-		for _, cb in ipairs(filterCallbacks[_G.hs.window.filter.windowCreated]) do
-			cb(win2)
-		end
+		helpers.emit(filterCallbacks, _G.hs.window.filter.windowCreated, win2)
 		VirtualSpaces:switchToVirtualSpace(2)
 
 		lu.assertNil(VirtualSpaces.model:getVirtualSpaceForWindow(200))
@@ -501,10 +460,9 @@ function TestVirtualSpace:testSwitchToCurrentVirtualSpaceReturnsFromForeignNativ
 	local win1 = helpers.createHsWindow(100, "App1")
 	local focusCount = 0
 	win1.focus = function() focusCount = focusCount + 1 end
-	local spaces = {activeSpace = 1, storageSpace = 2}
+	local spaces = {activeSpace = 1}
 
 	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
 		spaces = spaces,
 		allWindows = function() return {win1} end,
 		mockWindows = {[100] = win1},
@@ -530,7 +488,6 @@ function TestVirtualSpace:testSwitchToCurrentVirtualSpaceOnManagedSpaceDoesNothi
 	win1.focus = function() focusCount = focusCount + 1 end
 
 	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
 		allWindows = function() return {win1} end,
 		mockWindows = {[100] = win1},
 		windowSpaces = function() return {1} end,
@@ -551,7 +508,6 @@ function TestVirtualSpace:testInitHidesWindowsThroughWindowCache()
 	local windowGetCalls = 0
 
 	helpers.withHsGlobal(helpers.createHsGlobal({
-		operatingSystemVersion = function() return {major = 15, minor = 0, patch = 0} end,
 		allWindows = function() return {win} end,
 		windowGet = function(id)
 			if id == 100 then

@@ -6,6 +6,15 @@ local Window = require("Window")
 local SpacesModel = {}
 SpacesModel.__index = SpacesModel
 
+local function removeValue(list, value)
+	for i, v in ipairs(list) do
+		if v == value then
+			table.remove(list, i)
+			return
+		end
+	end
+end
+
 function SpacesModel.new()
 	local self = setmetatable({}, SpacesModel)
 	self._focusedWindows = {}
@@ -30,13 +39,7 @@ function SpacesModel:saveFocusedWindowInVirtualSpace(virtualSpace, windowId)
 	end
 
 	local focusHistory = self._focusedWindows[virtualSpace]
-	for i, wId in ipairs(focusHistory) do
-		if wId == windowId then
-			table.remove(focusHistory, i)
-			break
-		end
-	end
-
+	removeValue(focusHistory, windowId)
 	table.insert(focusHistory, 1, windowId)
 end
 
@@ -81,24 +84,6 @@ function SpacesModel:assignWindowToSpace(window, virtualSpace)
 			self._nextGroupId = self._nextGroupId + 1
 			self._groups[groupId] = {frame = window.frame, appName = window.appName, windowIds = {window.id}}
 			self._windowToGroup[window.id] = groupId
-
-			if window.tabCount and window.tabCount > 1 then
-				local groupsToMerge = {}
-				for otherGroupId, group in pairs(self._groups) do
-					if otherGroupId ~= groupId and
-					   group.appName == window.appName and
-					   Window.framesEqual(group.frame, window.frame) then
-						table.insert(groupsToMerge, otherGroupId)
-					end
-				end
-				for _, otherGroupId in ipairs(groupsToMerge) do
-					for _, otherWindowId in ipairs(self._groups[otherGroupId].windowIds) do
-						table.insert(self._groups[groupId].windowIds, otherWindowId)
-						self._windowToGroup[otherWindowId] = groupId
-					end
-					self._groups[otherGroupId] = nil
-				end
-			end
 		end
 	end
 
@@ -125,13 +110,7 @@ end
 function SpacesModel:unregisterWindowById(windowId)
 	local groupId = self._windowToGroup[windowId]
 	if groupId then
-		local windowIds = self._groups[groupId].windowIds
-		for i, id in ipairs(windowIds) do
-			if id == windowId then
-				table.remove(windowIds, i)
-				break
-			end
-		end
+		removeValue(self._groups[groupId].windowIds, windowId)
 
 		local tabSiblings = self:getTabSiblingsBeforeDestruction(windowId)
 		if tabSiblings and #tabSiblings > 0 then
@@ -169,15 +148,10 @@ function SpacesModel:assignWindowToVirtualSpace(windowId, virtualSpace)
 
 	if previousVirtualSpace then
 		self:_removeWindowFromList(previousVirtualSpace, windowId)
-		-- Remove from previous virtual space's focus history
+
 		local focusHistory = self._focusedWindows[previousVirtualSpace]
 		if focusHistory then
-			for i, wId in ipairs(focusHistory) do
-				if wId == windowId then
-					table.remove(focusHistory, i)
-					break
-				end
-			end
+			removeValue(focusHistory, windowId)
 		end
 	end
 
@@ -191,7 +165,7 @@ end
 
 -- Categorize windows based on their virtual space assignments for transition
 -- between two native spaces.
-function SpacesModel:categorizeWindowsForTransition(targetVirtualSpace, currentVirtualSpace)
+function SpacesModel:categorizeWindowsForTransition(targetVirtualSpace)
 	local toActive, toStorage = {}, {}
 	for windowId, virtualSpace in pairs(self._windowVirtualSpaceMap) do
 		if virtualSpace == targetVirtualSpace then
@@ -239,7 +213,7 @@ function SpacesModel:getTabSiblingsBeforeDestruction(windowId)
 	return #siblings > 0 and siblings or nil
 end
 
-function SpacesModel:prepareWindownToBeFocusedOnCurrentVirtualSpace()
+function SpacesModel:prepareWindowToBeFocusedOnCurrentVirtualSpace()
 	local currentVirtualSpace = self._currentVirtualSpace
 	local focusHistory = self._focusedWindows[currentVirtualSpace]
 
@@ -270,23 +244,13 @@ function SpacesModel:_removeWindowFromList(virtualSpace, windowId)
 	local windows = self._virtualSpaceWindowsMap[virtualSpace]
 	if not windows then return end
 
-	for i, wId in ipairs(windows) do
-		if wId == windowId then
-			table.remove(windows, i)
-			return
-		end
-	end
+	removeValue(windows, windowId)
 end
 
 -- Remove a window from all virtual space focus histories
 function SpacesModel:_removeWindowFromFocusHistory(windowId)
-	for virtualSpace, focusHistory in pairs(self._focusedWindows) do
-		for i, wId in ipairs(focusHistory) do
-			if wId == windowId then
-				table.remove(focusHistory, i)
-				break
-			end
-		end
+	for _, focusHistory in pairs(self._focusedWindows) do
+		removeValue(focusHistory, windowId)
 	end
 end
 

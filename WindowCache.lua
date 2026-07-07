@@ -1,13 +1,12 @@
 local WindowCache = {}
 WindowCache.__index = WindowCache
 
-function WindowCache.new(telemetry, deps)
+function WindowCache.new(deps)
 	local self = setmetatable({}, WindowCache)
 	local deps = deps or {}
 
 	self._cache = {}
 	self._hsWindow = deps.hsWindow or hs.window
-	self._telemetry = telemetry or require('Telemetry').NoOp.new()
 
 	return self
 end
