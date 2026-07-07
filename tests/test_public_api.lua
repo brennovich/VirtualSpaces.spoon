@@ -355,11 +355,9 @@ function TestPublicApi:_switchWhileOffManagedSpace(targetVirtualSpace)
 end
 
 function TestPublicApi:testSwitchToEmptyVirtualSpaceWhileOffManagedNavigatesToManagedSpace()
-	lu.assertEquals(self:_switchWhileOffManagedSpace(2), {1})
-end
-
-function TestPublicApi:testSwitchToCurrentEmptyVirtualSpaceWhileOffManagedNavigatesToManagedSpace()
-	lu.assertEquals(self:_switchWhileOffManagedSpace(1), {1})
+	for _, target in ipairs({1, 2}) do
+		lu.assertEquals(self:_switchWhileOffManagedSpace(target), {1})
+	end
 end
 
 function TestPublicApi:testGotoSpaceInducedFocusDoesNotSwitchAwayFromEmptySpace()

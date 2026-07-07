@@ -52,6 +52,9 @@ function TestGetWindowsApi:testGetWindowsForCurrentVirtualSpaceReturnsWindowObje
 	lu.assertEquals(windows[1].id(), 100)
 	lu.assertEquals(windows[2].id(), 200)
 	lu.assertEquals(windows[3].id(), 300)
+	lu.assertEquals(windows[1], self.mockWindows[100])
+	lu.assertEquals(windows[2], self.mockWindows[200])
+	lu.assertEquals(windows[3], self.mockWindows[300])
 end
 
 function TestGetWindowsApi:testGetWindowsForCurrentVirtualSpaceFiltersDestroyedWindows()
@@ -82,18 +85,6 @@ function TestGetWindowsApi:testGetWindowsForCurrentVirtualSpaceUsesCurrentSpace(
 
 	lu.assertEquals(#windows, 1)
 	lu.assertEquals(windows[1].id(), 300)
-end
-
-function TestGetWindowsApi:testGetWindowsForCurrentVirtualSpaceReturnsCorrectWindowObjects()
-	self.obj:switchToVirtualSpace(1)
-	self:_registerWindow(self.mockWindows[100])
-	self:_registerWindow(self.mockWindows[200])
-
-	local windows = self.obj:getWindowsForCurrentVirtualSpace()
-
-	lu.assertEquals(#windows, 2)
-	lu.assertEquals(windows[1], self.mockWindows[100])
-	lu.assertEquals(windows[2], self.mockWindows[200])
 end
 
 return TestGetWindowsApi

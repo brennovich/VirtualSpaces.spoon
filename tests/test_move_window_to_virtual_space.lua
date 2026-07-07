@@ -50,16 +50,10 @@ function TestMoveWindowToVirtualSpace:testDoesNothingWhenVirtualSpaceIsInvalid()
 	self.focusedWindowValue = self.mockWindows[100]
 
 	self.obj:moveWindowToVirtualSpace(nil, 0)
-
 	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {ACTIVE})
 	lu.assertNil(self.obj.model:getVirtualSpaceForWindow(100))
-end
-
-function TestMoveWindowToVirtualSpace:testDoesNothingWhenVirtualSpaceIsNil()
-	self.focusedWindowValue = self.mockWindows[100]
 
 	self.obj:moveWindowToVirtualSpace(nil, nil)
-
 	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(100), {ACTIVE})
 	lu.assertNil(self.obj.model:getVirtualSpaceForWindow(100))
 end

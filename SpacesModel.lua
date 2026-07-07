@@ -102,10 +102,7 @@ function SpacesModel:assignWindowToSpace(window, virtualSpace)
 		end
 	end
 
-	local groupId = self._windowToGroup[window.id]
-	for _, tabWindowId in ipairs(self._groups[groupId].windowIds) do
-		self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
-	end
+	self:_assignGroupToVirtualSpace(self._windowToGroup[window.id], virtualSpace)
 
 	self:saveFocusedWindowInVirtualSpace(virtualSpace, window.id)
 end
@@ -117,9 +114,7 @@ function SpacesModel:moveWindowToVirtualSpace(windowId, virtualSpace)
 
 	local groupId = self._windowToGroup[windowId]
 	if groupId then
-		for _, tabWindowId in ipairs(self._groups[groupId].windowIds) do
-			self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
-		end
+		self:_assignGroupToVirtualSpace(groupId, virtualSpace)
 	else
 		self:assignWindowToVirtualSpace(windowId, virtualSpace)
 	end
@@ -140,10 +135,7 @@ function SpacesModel:unregisterWindowById(windowId)
 
 		local tabSiblings = self:getTabSiblingsBeforeDestruction(windowId)
 		if tabSiblings and #tabSiblings > 0 then
-			for _, siblingId in ipairs(tabSiblings) do
-				self:saveFocusedWindowInVirtualSpace(self:getCurrentVirtualSpace(), siblingId)
-				break
-			end
+			self:saveFocusedWindowInVirtualSpace(self:getCurrentVirtualSpace(), tabSiblings[1])
 		end
 
 		self._windowToGroup[windowId] = nil
@@ -266,6 +258,12 @@ function SpacesModel:prepareWindownToBeFocusedOnCurrentVirtualSpace()
 	end
 
 	return nil
+end
+
+function SpacesModel:_assignGroupToVirtualSpace(groupId, virtualSpace)
+	for _, tabWindowId in ipairs(self._groups[groupId].windowIds) do
+		self:assignWindowToVirtualSpace(tabWindowId, virtualSpace)
+	end
 end
 
 function SpacesModel:_removeWindowFromList(virtualSpace, windowId)

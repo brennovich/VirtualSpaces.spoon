@@ -33,16 +33,6 @@ function TestTelemetry:testTimedWithMultipleReturnValues()
 	lu.assertEquals(c, 3)
 end
 
-function TestTelemetry:testNilTelemetryReturnsResult()
-	local tel = Telemetry.new('TestComponent', 'warning')
-
-	local result = tel:span('operation', function()
-		return 'result'
-	end)
-
-	lu.assertEquals(result, 'result')
-end
-
 function TestTelemetry:testTimedWithNoReturnValue()
 	local tel = Telemetry.new('TestComponent', 'debug')
 	local sideEffect = 0

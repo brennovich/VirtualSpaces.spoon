@@ -31,16 +31,17 @@ function TestHelpers.createWindow(id, tabCount, frame, appName)
 	}
 end
 
-function TestHelpers.createHsWindow(id, appName)
-	local currentFrame = {x = 0, y = 0, w = 800, h = 600}
+function TestHelpers.createHsWindow(id, appName, opts)
+	opts = opts or {}
+	local currentFrame = opts.frame or {x = 0, y = 0, w = 800, h = 600}
 
 	return {
 		id = function() return id end,
 		isStandard = function() return true end,
 		isFullScreen = function() return false end,
 		isMinimized = function() return false end,
-		focus = function() end,
-		tabCount = function() return 1 end,
+		focus = opts.onFocus or function() end,
+		tabCount = function() return opts.tabCount or 1 end,
 		frame = function() return currentFrame end,
 		setFrame = function(_, newFrame) currentFrame = newFrame end,
 		application = function() return {name = function() return appName end} end

@@ -12,49 +12,26 @@ function TestWindowDestroyed:setUp()
 	local filterCallbacks = self.filterCallbacks
 	local focusCalls = self.focusCalls
 
-	self.window1 = {
-		id = function() return 100 end,
-		isStandard = function() return true end,
-		isFullScreen = function() return false end,
-		isMinimized = function() return false end,
-		tabCount = function() return 1 end,
-		frame = function() return {x = 0, y = 0, w = 800, h = 600} end,
-		application = function() return {name = function() return "App1" end} end,
-		focus = function() table.insert(focusCalls, 100) end
-	}
+	self.window1 = helpers.createHsWindow(100, "App1", {
+		frame = {x = 0, y = 0, w = 800, h = 600},
+		onFocus = function() table.insert(focusCalls, 100) end
+	})
 
-	self.window2 = {
-		id = function() return 200 end,
-		isStandard = function() return true end,
-		isFullScreen = function() return false end,
-		isMinimized = function() return false end,
-		tabCount = function() return 1 end,
-		frame = function() return {x = 0, y = 200, w = 800, h = 600} end,
-		application = function() return {name = function() return "App2" end} end,
-		focus = function() table.insert(focusCalls, 200) end
-	}
+	self.window2 = helpers.createHsWindow(200, "App2", {
+		frame = {x = 0, y = 200, w = 800, h = 600},
+		onFocus = function() table.insert(focusCalls, 200) end
+	})
 
-	self.window3a = {
-		id = function() return 300 end,
-		isStandard = function() return true end,
-		isFullScreen = function() return false end,
-		isMinimized = function() return false end,
-		tabCount = function() return 1 end,
-		frame = function() return {x = 400, y = 0, w = 800, h = 600} end,
-		application = function() return {name = function() return "Terminal" end} end,
-		focus = function() table.insert(focusCalls, 300) end
-	}
+	self.window3a = helpers.createHsWindow(300, "Terminal", {
+		frame = {x = 400, y = 0, w = 800, h = 600},
+		onFocus = function() table.insert(focusCalls, 300) end
+	})
 
-	self.window3b = {
-		id = function() return 301 end,
-		isStandard = function() return true end,
-		isFullScreen = function() return false end,
-		isMinimized = function() return false end,
-		tabCount = function() return 2 end,
-		frame = function() return {x = 400, y = 0, w = 800, h = 600} end,
-		application = function() return {name = function() return "Terminal" end} end,
-		focus = function() table.insert(focusCalls, 301) end
-	}
+	self.window3b = helpers.createHsWindow(301, "Terminal", {
+		frame = {x = 400, y = 0, w = 800, h = 600},
+		tabCount = 2,
+		onFocus = function() table.insert(focusCalls, 301) end
+	})
 
 	_G.hs = helpers.createHsGlobal({
 		filterNew = function()
