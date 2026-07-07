@@ -77,6 +77,7 @@ function TestHelpers.createHsGlobal(overrides)
 			activeSpaceOnScreen = overrides.activeSpaceOnScreen or function()
 				return spaces.activeSpace
 			end,
+			gotoSpace = overrides.gotoSpace or function() end,
 			allSpaces = overrides.allSpaces or function()
 				return {["screen-123"] = {spaces.activeSpace}}
 			end,

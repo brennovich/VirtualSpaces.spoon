@@ -31,7 +31,7 @@ local function mockHsSpaces(options)
 	local spaces = options.spaces or {1}
 	local removesEffective = options.removesEffective ~= false
 	local windowSpaces = options.windowSpaces or {}
-	local calls = {openMissionControl = 0, closeMissionControl = 0, removed = {}}
+	local calls = {openMissionControl = 0, closeMissionControl = 0, removed = {}, gotoSpace = {}}
 
 	return {
 		allSpaces = function()
@@ -43,6 +43,7 @@ local function mockHsSpaces(options)
 			return windowSpaces[winId] or {options.active or spaces[1]}
 		end,
 		activeSpaceOnScreen = function() return options.active or spaces[1] end,
+		gotoSpace = function(spaceID) table.insert(calls.gotoSpace, spaceID) end,
 		openMissionControl = function() calls.openMissionControl = calls.openMissionControl + 1 end,
 		closeMissionControl = function() calls.closeMissionControl = calls.closeMissionControl + 1 end,
 		removeSpace = function(spaceID)
@@ -292,6 +293,18 @@ function TestVirtualSpace:testIsOnManagedSpaceReflectsActiveSpace()
 
 	opts.active = 99
 	lu.assertFalse(space:isOnManagedSpace())
+end
+
+function TestVirtualSpace:testActivateManagedSpaceNavigatesToManagedNativeSpace()
+	local opts = {spaces = {1}, active = 1}
+	local hsSpaces = mockHsSpaces(opts)
+	local space = mockedVirtualSpace({hsSpaces = hsSpaces})
+	space:setupForMainScreen()
+
+	opts.active = 99
+	space:activateManagedSpace()
+
+	lu.assertEquals(hsSpaces._calls.gotoSpace, {1})
 end
 
 function TestVirtualSpace:testMoveWindowToSpaceHandlesMissingWindow()

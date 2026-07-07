@@ -333,6 +333,110 @@ function TestPublicApi:testSwitchToVirtualSpaceHidesCurrentSpaceWindowsAndShowsT
 	lu.assertEquals(self.obj.spaceStrategy:windowSpaces(200), {"active"})
 end
 
+function TestPublicApi:_switchWhileOffManagedSpace(targetVirtualSpace)
+	local gotoCalls = {}
+	local activeNativeSpace = 1
+
+	_G.hs = helpers.createHsGlobal({
+		spaces = {activeSpace = 1, storageSpace = 2},
+		windowSpaces = function() return {1} end,
+		activeSpaceOnScreen = function() return activeNativeSpace end,
+		gotoSpace = function(spaceID) table.insert(gotoCalls, spaceID) end,
+	})
+
+	package.loaded['init'] = nil
+	local VirtualSpaces = require('init')
+	VirtualSpaces:init()
+
+	activeNativeSpace = 99
+	VirtualSpaces:switchToVirtualSpace(targetVirtualSpace)
+
+	return gotoCalls
+end
+
+function TestPublicApi:testSwitchToEmptyVirtualSpaceWhileOffManagedNavigatesToManagedSpace()
+	lu.assertEquals(self:_switchWhileOffManagedSpace(2), {1})
+end
+
+function TestPublicApi:testSwitchToCurrentEmptyVirtualSpaceWhileOffManagedNavigatesToManagedSpace()
+	lu.assertEquals(self:_switchWhileOffManagedSpace(1), {1})
+end
+
+function TestPublicApi:testGotoSpaceInducedFocusDoesNotSwitchAwayFromEmptySpace()
+	local filterCallbacks = {}
+	local activeNativeSpace = 1
+	local focused = nil
+	local windows = {}
+	for _, id in ipairs({72, 88, 187}) do
+		windows[id] = helpers.createHsWindow(id, "App")
+	end
+
+	_G.hs = helpers.createHsGlobal({
+		spaces = {activeSpace = 1, storageSpace = 2},
+		windowSpaces = function() return {1} end,
+		activeSpaceOnScreen = function() return activeNativeSpace end,
+		filterNew = function()
+			return {
+				subscribe = function(_, eventType, cb)
+					filterCallbacks[eventType] = filterCallbacks[eventType] or {}
+					table.insert(filterCallbacks[eventType], cb)
+				end,
+				setCurrentSpace = function() end,
+			}
+		end,
+		windowGet = function(id) return windows[id] end,
+		focusedWindow = function() return focused end,
+	})
+
+	package.loaded['init'] = nil
+	local VirtualSpaces = require('init')
+	VirtualSpaces:init()
+
+	for _, id in ipairs({72, 88, 187}) do
+		VirtualSpaces.windowCache:add(windows[id])
+		VirtualSpaces.model:assignWindowToVirtualSpace(id, 1)
+	end
+
+	activeNativeSpace = 99
+	VirtualSpaces:switchToVirtualSpace(3)
+
+	focused = windows[187]
+	for _, cb in ipairs(filterCallbacks[3] or {}) do
+		cb(windows[187])
+	end
+
+	lu.assertEquals(VirtualSpaces:getCurrentVirtualSpace(), 3)
+end
+
+function TestPublicApi:testSwitchToNonEmptyVirtualSpaceWhileOffManagedRestoresFocusWithoutGotoSpace()
+	local gotoCalls = {}
+	local activeNativeSpace = 1
+	local win = helpers.createHsWindow(700, "App")
+	local focusCalls = {}
+	win.focus = function() table.insert(focusCalls, 700) end
+
+	_G.hs = helpers.createHsGlobal({
+		spaces = {activeSpace = 1, storageSpace = 2},
+		windowSpaces = function() return {1} end,
+		activeSpaceOnScreen = function() return activeNativeSpace end,
+		gotoSpace = function(spaceID) table.insert(gotoCalls, spaceID) end,
+		windowGet = function(id) return id == 700 and win or nil end,
+	})
+
+	package.loaded['init'] = nil
+	local VirtualSpaces = require('init')
+	VirtualSpaces:init()
+
+	VirtualSpaces.windowCache:add(win)
+	VirtualSpaces.model:assignWindowToVirtualSpace(700, 2)
+
+	activeNativeSpace = 99
+	VirtualSpaces:switchToVirtualSpace(2)
+
+	lu.assertEquals(gotoCalls, {})
+	lu.assertEquals(focusCalls, {700})
+end
+
 function TestPublicApi:testSwitchToSameVirtualSpaceDoesNotTriggerEvent()
 	local callCount = 0
 	local callback = function(eventData) callCount = callCount + 1 end

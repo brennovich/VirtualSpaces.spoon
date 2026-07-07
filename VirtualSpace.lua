@@ -51,6 +51,10 @@ function VirtualSpace:isOnManagedSpace()
 	return self._hsSpaces.activeSpaceOnScreen() == self._managedSpaceId
 end
 
+function VirtualSpace:activateManagedSpace()
+	self._hsSpaces.gotoSpace(self._managedSpaceId)
+end
+
 function VirtualSpace:managesWindow(winId)
 	local spaces = self._hsSpaces.windowSpaces(winId)
 	if not spaces then return false end

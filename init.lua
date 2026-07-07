@@ -89,6 +89,11 @@ function obj:init()
 	self.spaceStrategy:startWatchingForManualNavigation(function(currentNativeSpace)
 		self._telemetry:span(string.format("spaceWatcher(%s)", tostring(currentNativeSpace)), function()
 			if currentNativeSpace == self.spaceStrategy:getStorageSpace() then
+				if self._ignoreNextManualNavigation then
+					self._ignoreNextManualNavigation = false
+					return
+				end
+
 				if self:_currentVirtualSpaceIsClosing() then
 					return
 				end
@@ -106,6 +111,8 @@ function obj:init()
 	self.subscribers = {
 		virtualSpaceChanged = {}
 	}
+
+	self._ignoreNextManualNavigation = false
 
 	return self
 end
@@ -128,15 +135,22 @@ end
 --- * Does nothing if already on the target virtual space
 function obj:switchToVirtualSpace(virtualSpace)
 	return self._telemetry:span(string.format("switchToVirtualSpace(%d)", virtualSpace), function()
+		local onManagedSpace = self.spaceStrategy:isOnManagedSpace()
+
 		if virtualSpace == self.model:getCurrentVirtualSpace() then
-			if not self.spaceStrategy:isOnManagedSpace() then
-				self:_restoreWindowsFocusForVirtualSpace()
+			if not onManagedSpace then
+				self:_returnToManagedSpace()
 			end
 			return
 		end
 
 		self:_switchSpaces(virtualSpace)
-		self:_restoreWindowsFocusForVirtualSpace()
+
+		if onManagedSpace then
+			self:_restoreWindowsFocusForVirtualSpace()
+		else
+			self:_returnToManagedSpace()
+		end
 
 		self:_dispatchEvent("virtualSpaceChanged")
 	end)
@@ -388,6 +402,13 @@ function obj:_assignWindowToVirtualSpace(window, virtualSpace)
 	end)
 end
 
+function obj:_returnToManagedSpace()
+	if not self:_restoreWindowsFocusForVirtualSpace() then
+		self._ignoreNextManualNavigation = true
+		self.spaceStrategy:activateManagedSpace()
+	end
+end
+
 function obj:_restoreWindowsFocusForVirtualSpace()
 	return self._telemetry:span("restoreWindowsFocus", function()
 		local currentSpace = self.model:getCurrentVirtualSpace()
@@ -395,13 +416,18 @@ function obj:_restoreWindowsFocusForVirtualSpace()
 		if osFocused and self:_isValidWindowForVirtualSpace(osFocused)
 			and self.model:getVirtualSpaceForWindow(osFocused:id()) == currentSpace then
 			self.model:saveFocusedWindowInVirtualSpace(currentSpace, osFocused:id())
-			return
+			return true
 		end
 
 		local win = self.windowCache:get(
 			self.model:prepareWindownToBeFocusedOnCurrentVirtualSpace())
 
-		if win then win:focus() end
+		if win then
+			win:focus()
+			return true
+		end
+
+		return false
 	end)
 end
 
