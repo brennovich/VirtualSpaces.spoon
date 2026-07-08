@@ -14,7 +14,6 @@ local SpacesModel = require("SpacesModel")
 local VirtualSpace = require("VirtualSpace")
 local Telemetry = require("Telemetry")
 local WindowCache = require("WindowCache")
-local Pager = require("Pager")
 
 local obj = {}
 obj.__index = obj
@@ -23,14 +22,6 @@ obj.name = "VirtualSpaces"
 obj.version = "1.0"
 obj.author = "brennovich"
 obj.license = "MIT"
-
---- VirtualSpaces.pager
---- Variable
---- Optional pager configuration table. When set to { enabled = true } before calling
---- init(), renders a black tab anchored to the bottom-right corner that masks the
---- storage-window nubs and displays the current virtual space number. Defaults to
---- { enabled = false }.
-obj.pager = { enabled = false }
 
 --- VirtualSpaces:init()
 --- Method
@@ -123,14 +114,6 @@ function obj:init()
 	}
 
 	self._ignoreNextManualNavigation = false
-
-	if self.pager and self.pager.enabled then
-		self._pager = Pager.new({telemetry = self._telemetry})
-		self:subscribe("virtualSpaceChanged", function(eventData)
-			self._pager:update(eventData.currentSpace.id)
-		end)
-		self._pager:update(self.model:getCurrentVirtualSpace())
-	end
 
 	return self
 end
